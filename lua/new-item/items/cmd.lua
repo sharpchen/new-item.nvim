@@ -49,7 +49,7 @@ function CmdItem:invoke()
     creation = function(item, ctx)
       util.async_cmd(item.cmd, function(_)
         if item.edit then vim.schedule(function() vim.cmd.edit(ctx.path) end) end
-        _ = item.after_creation and item:after_creation(ctx)
+        _ = item.after_creation and vim.schedule(function() item:after_creation(ctx) end)
       end, { cwd = ctx.cwd })
     end,
   })(self)
