@@ -7,7 +7,7 @@ Creating items from context-aware templates.
 ## Why this plugin
 
 The idea came from the common feature of modern IDEs that, allowing to create a file based on template and context, things like **Add new class** in the menu while you right-click in the explorer.
-This plugin was designed to be a **scaffold** to write your own template with context-aware capabilities for each time you create a file.
+This plugin was designed to be a **scaffold** to write your own template with context-aware capabilities.
 
 ## Installation
 
@@ -21,7 +21,7 @@ This plugin was designed to be a **scaffold** to write your own template with co
   config = function()
     require('new-item').setup {
       picker = {
-        name = 'snacks', -- or other pickers
+        name = 'snacks', -- or 'fzf-lua' or 'telescope'
         preview = false,
       }
     }
@@ -246,7 +246,7 @@ For example, you may require javascript templates to present only when it found 
 ```lua
 require('new-item.groups').javascript = {
   cond = function()
-    return vim.fs.root(vim.fn.expand('#:p:h'), 'package.json') ~= nil
+    return vim.fs.root(vim.fn.expand('%:p:h'), 'package.json') ~= nil
   end,
   items = {--[[...]]}
 }
