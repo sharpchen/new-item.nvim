@@ -38,7 +38,6 @@ end
 function FileItem:invoke()
   (util.item_creator {
     path = function(item, ctx)
-      if not util.path_exists(ctx.cwd) then vim.fn.mkdir(ctx.cwd, 'p') end
       ctx.path = item:get_path {
         cwd = ctx.cwd,
         name_input = ctx.name_input,
@@ -52,6 +51,7 @@ function FileItem:invoke()
       _ = item.before_creation and item:before_creation(ctx)
     end,
     creation = function(item, ctx)
+      if not util.path_exists(ctx.cwd) then vim.fn.mkdir(ctx.cwd, 'p') end
       if item.edit then
         vim.cmd.edit(ctx.path)
         util.fill_buf { buf = 0, content = item.content }

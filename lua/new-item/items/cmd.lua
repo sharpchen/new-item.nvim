@@ -47,6 +47,7 @@ function CmdItem:invoke()
       _ = item.before_creation and item:before_creation(ctx)
     end,
     creation = function(item, ctx)
+      if not util.path_exists(ctx.cwd) then vim.fn.mkdir(ctx.cwd, 'p') end
       util.async_cmd(item.cmd, function(_)
         if item.edit then vim.schedule(function() vim.cmd.edit(ctx.path) end) end
         _ = item.after_creation and vim.schedule(function() item:after_creation(ctx) end)
