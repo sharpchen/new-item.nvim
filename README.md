@@ -99,7 +99,7 @@ require('new-item.groups').javascript:append { -- assuming javascript is a exist
   }
   file {
     label = '.prettierrc',
-    edit = false, -- do not open the file after creation
+    edit = false, -- do not create the file directly but open a buffer with content
     link = vim.fn.expand('~/.prettierrc'), -- use content of an existing file
     nameable = false, -- .prettierrc is always .prettierrc
     default_name = '.prettierrc',
