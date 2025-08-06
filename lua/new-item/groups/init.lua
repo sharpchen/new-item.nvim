@@ -29,4 +29,9 @@ M.gitignore = {
   builtin_items = require('new-item.groups.gitignore'),
 }
 
+M.config = {
+  cond = true,
+  builtin_items = require('new-item.groups.config'),
+}
+
 return M
