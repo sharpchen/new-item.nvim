@@ -143,6 +143,37 @@ function M.register_items_to(group)
           }
         )
       end
+
+      if template.alias:match('^avalonia') then
+        if template.alias:match('styles') or template.alias:match('resource') then
+          table.insert(
+            items,
+            cmd {
+              label = template.alias,
+              desc = template.fullname,
+              cmd = { 'dotnet', 'new', template.alias, '-n' },
+              append_name = true,
+              suffix = '.axaml',
+            }
+          )
+        else
+          table.insert(
+            items,
+            cmd {
+              label = template.alias,
+              desc = template.fullname,
+              suffix = '.axaml',
+              cmd = { 'dotnet', 'new', template.alias, '-n' },
+              append_name = true,
+              before_creation = function(item, ctx)
+                ---@cast item new-item.CmdItem
+                dn_util.transform_by_lang { append_ext = false }(item, ctx)
+                dn_util.transform_by_ns(item, ctx)
+              end,
+            }
+          )
+        end
+      end
       ::continue::
     end
 
