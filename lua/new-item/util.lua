@@ -89,13 +89,12 @@ function M.dedent(s)
 end
 
 ---@generic T
----@param fov (T | fun(): T)
----@param default? T
+---@param fov (T | fun(...): T)
+---@param ... T? params for function
 ---@return T
-function M.fn_or_val(fov, default)
-  if fov == nil then return default end
+function M.fn_or_val(fov, ...)
   if type(fov) == 'function' then
-    return fov() or default
+    return fov(...)
   else
     return fov
   end

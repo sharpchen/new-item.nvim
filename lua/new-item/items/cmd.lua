@@ -1,5 +1,9 @@
 local Item = require('new-item.items.item')
 local util = require('new-item.util')
+
+-- NOTE: if someday you like to allow CmdItem.cmd as a function
+-- create a ctx field for it, and change the item.cmd references in pickers to nil when cmd a function
+
 ---@class (exact) new-item.CmdItem : new-item.Item
 ---@field cmd string[] shell command
 ---@overload fun(o: self): self
@@ -7,7 +11,7 @@ local util = require('new-item.util')
 ---@field __index? any
 ---@field new? fun(self, o) : self
 ---@field edit? boolean Whether to open the item after creation, default to true
----@field append_name? boolean
+---@field append_name? boolean Whether to append ctx.name_input to item.cmd
 ---@overload fun(o: new-item.CmdItem): new-item.CmdItem
 ---@diagnostic disable-next-line: assign-type-mismatch
 local CmdItem = Item:new {
