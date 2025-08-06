@@ -38,11 +38,19 @@ function M.register_items_to(group)
         default_name = '_ViewStart.cshtml',
         cmd = { 'dotnet', 'new', 'viewstart' },
       },
-      dn_util.cmd_with_ns {
-        shortname = 'viewimports',
+      file {
+        label = 'Directory.Build.rsp',
+        nameable = false,
+        default_name = 'Directory.Build.rsp',
+        content = '',
+      },
+      cmd {
+        label = 'viewimports',
         nameable = false,
         default_name = '_ViewImports',
+        cmd = { 'dotnet', 'new', 'viewimports' },
         suffix = '.cshtml',
+        before_creation = dn_util.transform_by_ns,
       },
       cmd {
         label = 'razorcomponent',
@@ -52,6 +60,7 @@ function M.register_items_to(group)
       },
       cmd {
         label = 'view',
+        desc = 'cshtml file',
         cmd = { 'dotnet', 'new', 'view', '-n' },
         append_name = true,
         suffix = '.cshtml',
@@ -62,9 +71,26 @@ function M.register_items_to(group)
         default_name = 'web.config',
         cmd = { 'dotnet', 'new', 'webconfig' },
       },
-      dn_util.cmd_with_ns { suffix = '.cshtml', shortname = 'page' },
-      dn_util.cmd_with_ns { shortname = 'mvccontroller' },
-      dn_util.cmd_with_ns { shortname = 'apicontroller' },
+      cmd {
+        label = 'page',
+        cmd = { 'dotnet', 'new', 'page', '-n' },
+        suffix = '.cshtml',
+        append_name = true,
+        before_creation = dn_util.transform_by_ns,
+      },
+      cmd {
+        label = 'mvccontroller',
+        cmd = { 'dotnet', 'new', 'mvccontroller', '-n' },
+        append_name = true,
+        before_creation = dn_util.transform_by_ns,
+      },
+
+      cmd {
+        label = 'apicontroller',
+        cmd = { 'dotnet', 'new', 'apicontroller', '-n' },
+        append_name = true,
+        before_creation = dn_util.transform_by_ns,
+      },
     })
 
     for _, shortname in ipairs { 'class', 'interface', 'enum', 'record', 'struct' } do
@@ -73,7 +99,8 @@ function M.register_items_to(group)
         cmd {
           label = shortname,
           cmd = { 'dotnet', 'new', shortname, '-n' },
-          before_creation = dn_util.transform_by_lang,
+          append_name = true,
+          before_creation = dn_util.transform_by_lang { append_ext = true },
         }
       )
     end
@@ -103,28 +130,16 @@ function M.register_items_to(group)
         goto continue
       end
 
-      if template.lang == nil then
-        if template.alias:match('%.%w+$') then -- templates like .gitignore, .editorconfig
-          table.insert(
-            items,
-            cmd {
-              label = template.alias,
-              desc = template.fullname,
-              nameable = false,
-              default_name = template.alias,
-              cmd = { 'dotnet', 'new', template.alias },
-            }
-          )
-        end
-      else -- templates with lang
-        -- templates with lang are generally nameable
+      -- templates like .gitignore, .editorconfig
+      if template.lang == nil and template.alias:match('^%.%w+$') then
         table.insert(
           items,
           cmd {
             label = template.alias,
             desc = template.fullname,
-            cmd = { 'dotnet', 'new', template.alias, '-n' },
-            before_creation = dn_util.transform_by_lang,
+            nameable = false,
+            default_name = template.alias,
+            cmd = { 'dotnet', 'new', template.alias },
           }
         )
       end

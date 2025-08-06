@@ -1,5 +1,7 @@
 local util = require('new-item.util')
-local M = {}
+local M = {
+  msbuild = {},
+}
 
 --- searching upward to get nearest project file path from cwd
 ---@param cwd string
@@ -16,7 +18,7 @@ end
 ---@param prop string
 ---@return string
 ---@overload fun(project: string, prop: string[]): table<string, string>
-function M.get_msbuild_property(project, prop)
+function M.msbuild.get_property(project, prop)
   local result
   util
     .async_cmd(
@@ -49,7 +51,9 @@ function M.get_templates(kind, callback)
       'new',
       (dn_gt_7 and 'list' or '--list'),
       '--type=' .. kind,
-      '--ignore-constraints',
+      -- NOTE: we should probably not ignore constraints
+      -- let it conditionally present by project types
+      -- '--ignore-constraints',
     }, function(res)
       local templates = vim
         .iter(vim.split(res, '\n'))
@@ -88,77 +92,58 @@ function M.get_templates(kind, callback)
       end
 
       callback(templates)
-    end)
+    end, { cwd = vim.uv.cwd() })
   end)
 end
 
 --- construct namespace base on context
----@param opts { proj: string, structure?: { root: string, cwd: string },  }
+---@param opts { proj: string, root: string, cwd: string }
 ---@return string namespace folder structure based namespace if opts.structure is specified, else RootNamespace of the project.
 function M.get_namespace(opts)
   vim.validate('project file', opts.proj, function(p) return util.path_exists(p) end)
-  local root_ns = M.get_msbuild_property(opts.proj, 'RootNamespace')
-  if opts.structure then
-    local rel = vim.fs.relpath(opts.structure.root, opts.structure.cwd)
-    if rel and rel ~= '.' then return root_ns .. '.' .. rel:gsub('/', '.') end
-  end
+  local root_ns = M.msbuild.get_property(opts.proj, 'RootNamespace')
+  local rel = vim.fs.relpath(opts.root, opts.cwd)
+  if rel and rel ~= '.' then return root_ns .. '.' .. rel:gsub('/', '.') end
   return root_ns
-end
-
----creating a cmd for template accepting `--namespace` option
----if opts.suffix is not specified, extension would be handled by project detection
----@param opts { suffix?: string, shortname: string, nameable?: boolean, default_name?: string }
-function M.cmd_with_ns(opts)
-  if opts.nameable == nil then opts.nameable = true end
-
-  util.validate_name(opts)
-
-  return require('new-item.items').CmdItem {
-    label = opts.shortname,
-    nameable = opts.nameable,
-    default_name = not opts.nameable and opts.default_name or nil,
-    cmd = { 'dotnet', 'new', opts.shortname, (opts.nameable and '-n' or nil) },
-    before_creation = function(item, ctx)
-      local proj = M.get_nearest_proj(ctx.cwd)
-      if opts.suffix then
-        ctx.path = ctx.path .. (opts.suffix or '')
-        item.cmd = vim.list_extend(item.cmd, { ctx.name_input })
-      else
-        ---@cast item new-item.CmdItem
-        M.transform_by_lang(item, ctx) -- name_input was appended inside
-      end
-      item.cmd = vim.list_extend(item.cmd, {
-        '--namespace',
-        M.get_namespace {
-          proj = proj or '',
-          structure = { root = vim.fs.dirname(proj), cwd = ctx.cwd },
-        },
-      })
-    end,
-  }
 end
 
 ---@param item new-item.CmdItem
 ---@param ctx new-item.ItemCreationContext
-function M.transform_by_lang(item, ctx)
-  ---@cast item new-item.CmdItem
+function M.transform_by_ns(item, ctx)
   local proj = M.get_nearest_proj(ctx.cwd)
+  item.cmd = vim.list_extend(item.cmd, {
+    '--namespace',
+    M.get_namespace {
+      proj = proj or '',
+      ---@diagnostic disable-next-line: assign-type-mismatch
+      root = vim.fs.dirname(proj),
+      cwd = ctx.cwd,
+    },
+  })
+end
 
-  if proj then
-    local ext
-    if proj:match('%.csproj$') then
-      ext = '.cs'
-      item.cmd = vim.list_extend(item.cmd, { ctx.name_input, '-lang', 'C#' })
-    elseif proj:match('%.vbproj$') then
-      ext = '.vb'
-      item.cmd = vim.list_extend(item.cmd, { ctx.name_input, '-lang', 'VB' })
-    elseif proj:match('%.fsproj$') then
-      ext = '.fs'
-      item.cmd = vim.list_extend(item.cmd, { ctx.name_input, '-lang', 'F#' })
+---@param opts { append_ext: boolean }
+function M.transform_by_lang(opts)
+  return function(item, ctx)
+    ---@cast item new-item.CmdItem
+    local proj = M.get_nearest_proj(ctx.cwd)
+
+    if proj then
+      local ext
+      if proj:match('%.csproj$') then
+        ext = '.cs'
+        item.cmd = vim.list_extend(item.cmd, { '-lang', 'C#' })
+      elseif proj:match('%.vbproj$') then
+        ext = '.vb'
+        item.cmd = vim.list_extend(item.cmd, { '-lang', 'VB' })
+      elseif proj:match('%.fsproj$') then
+        ext = '.fs'
+        item.cmd = vim.list_extend(item.cmd, { '-lang', 'F#' })
+      end
+      if opts.append_ext then ctx.path = ctx.path .. ext end
+    else
+      util.warn('project file not found.')
     end
-    ctx.path = ctx.path .. ext
-  else
-    util.warn('project file not found.')
   end
 end
 
