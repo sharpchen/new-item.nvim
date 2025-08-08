@@ -29,6 +29,11 @@ M.gitignore = {
   builtin_items = require('new-item.groups.gitignore'),
 }
 
+M.gitattributes = {
+  cond = false,
+  builtin_items = require('new-item.groups.gitattributes'),
+}
+
 M.config = {
   cond = true,
   builtin_items = require('new-item.groups.config'),

@@ -266,4 +266,6 @@ You can add any number of groups for your specific working environments.
 
 - `gitignore`: a `.gitignore` collection from https://github.com/github/gitignore
     - this group is not presented in picker by default, because there's too many of them, use `:NewItem gitignore` to create one.
+- `gitattributes`: a `.gitattributes` collection from https://github.com/gitattributes/gitattributes
+    - this group is not presented in picker by default, because there's too many of them, use `:NewItem gitattributes` to create one.
 - `dotnet`: some wrappers for `dotnet new` templates.

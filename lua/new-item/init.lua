@@ -27,6 +27,8 @@ vim.api.nvim_create_user_command('NewItem', function(args)
   local groups = require('new-item.groups')
   if args.args == 'gitignore' then
     picker(groups.gitignore:get_items())
+  elseif args.args == 'gitattributes' then
+    picker(groups.gitattributes:get_items())
   else
     local items = vim
       .iter(vim.tbl_values(groups))
@@ -51,7 +53,7 @@ vim.api.nvim_create_user_command('NewItem', function(args)
   end
 end, {
   nargs = '?',
-  complete = function() return { 'gitignore' } end,
+  complete = function() return { 'gitignore', 'gitattributes' } end,
   desc = 'Create a new item',
 })
 
