@@ -257,7 +257,9 @@ You can add any number of groups for your specific working environments.
 ### How does it work
 
 1. an item name was decided by either `ctx.name_input` or `default_name`, depending on whether the template is `nameable`.
-2. path of the item to be created was composed by the item name, `cwd`, `suffix` and `prefix`.
+2. path of the item to be created was composed by the item name, `ctx.cwd`, `item.suffix` and `item.prefix`.
+    - for `FileItem`, `%s` in `item.content` would be replaced by `ctx.name_input`
+    - for `CmdItem`, `ctx.name_input` would be appended to `item.cmd` when `item.append_name` is `true`
 3. `before_creation` was then triggered, might perform some transformation.
 4. `item:invoke()` was triggered to create the item.
 5. `after_creation` was triggered to perform a post action.
