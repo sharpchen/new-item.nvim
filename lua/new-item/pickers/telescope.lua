@@ -30,7 +30,7 @@ return function(items)
         actions.select_default:replace(function()
           actions.close(prompt_bufnr)
           local item = action_state.get_selected_entry().value
-          item._create(vim.deepcopy(item))
+          _ = item and item._create(vim.deepcopy(item))
         end)
         return true
       end,

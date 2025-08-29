@@ -41,6 +41,7 @@ return function(items)
     preview = 'preview',
     confirm = function(self, item, _)
       self:close()
+      if not item then return end
       ---@diagnostic disable-next-line: invisible
       items[item.idx]._create(vim.deepcopy(items[item.idx]))
     end,
