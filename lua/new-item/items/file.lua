@@ -55,12 +55,18 @@ function FileItem:invoke()
       if item.edit then
         vim.cmd.edit(ctx.path)
         util.fill_buf { buf = 0, content = item.content }
+        if item.filetype and vim.bo.filetype ~= item.filetype then
+          vim.bo.filetype = item.filetype
+        end
       else
         local f = io.open(ctx.path, 'w')
         if f then
           f:write(item.content)
           f:close()
           vim.cmd.edit(ctx.path)
+          if item.filetype and vim.bo.filetype ~= item.filetype then
+            vim.bo.filetype = item.filetype
+          end
         else
           error('Cannot open path: ' .. ctx.path)
         end
