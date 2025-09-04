@@ -20,8 +20,12 @@ if vim.fn.executable('dotnet') == 1 then
         function(name, _) return name:match('%.slnx?$') or name:match('%.%w+proj$') end
       ) ~= nil
     end,
+    fetch_builtins = function(self)
+      ---@diagnostic disable-next-line: invisible
+      self.builtin_items = {}
+      require('new-item.groups.dotnet').register_items_to(self)
+    end,
   }
-  require('new-item.groups.dotnet').register_items_to(M.dotnet)
 end
 
 M.gitignore = {

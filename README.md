@@ -26,6 +26,12 @@ This plugin was designed to be a **scaffold** to write your own template with co
       }
     }
     vim.keymap.set('n', '<leader>ni', '<cmd>NewItem<CR>')
+    require('new-item.groups').my_group_name = {
+      cond = true,
+      items = {--[[  ...  ]]}
+    }
+    -- IMPORTANT: load after all groups are defined
+    require('new-item').load_groups()
   end
 }
 ```

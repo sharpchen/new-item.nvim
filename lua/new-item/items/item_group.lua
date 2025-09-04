@@ -9,6 +9,7 @@
 ---@field __newindex? any
 ---@field append? fun(self, items: new-item.AnyItem[]) -- append user defined items
 ---@field get_items? fun(self): new-item.AnyItem[]
+---@field fetch_builtins? fun(self: new-item.ItemGroup) how to load/reload builtin items that are typically reliant to external data
 local ItemGroup = {
   cond = true,
   enable_builtin = true,

@@ -57,4 +57,17 @@ end, {
   desc = 'Create a new item',
 })
 
+function M.load_groups()
+  for _, group in pairs(require('new-item.groups')) do
+    if util.fn_or_val(group.cond) then
+      _ = group.fetch_builtins and group:fetch_builtins()
+    end
+  end
+end
+
+vim.api.nvim_create_autocmd('DirChanged', {
+  group = vim.api.nvim_create_augroup('new-item', { clear = true }),
+  callback = function() M.load_groups() end,
+})
+
 return M
