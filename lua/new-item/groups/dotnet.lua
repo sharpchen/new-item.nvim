@@ -145,18 +145,6 @@ function M.register_items_to(group)
       },
     })
 
-    for _, shortname in ipairs { 'class', 'interface', 'enum', 'record', 'struct' } do
-      table.insert(
-        items,
-        cmd {
-          label = shortname,
-          cmd = { 'dotnet', 'new', shortname, '-n' },
-          append_name = true,
-          before_creation = dn_util.transform_by_lang { append_ext = true },
-        }
-      )
-    end
-
     for _, shortname in ipairs { 'sln', 'slnx' } do
       table.insert(
         items,
@@ -194,9 +182,7 @@ function M.register_items_to(group)
             cmd = { 'dotnet', 'new', template.alias },
           }
         )
-      end
-
-      if template.alias:match('^avalonia') then
+      elseif template.alias:match('^avalonia') then
         if template.alias:match('styles') or template.alias:match('resource') then
           table.insert(
             items,
@@ -225,6 +211,21 @@ function M.register_items_to(group)
             }
           )
         end
+      elseif
+        vim.list_contains(
+          { 'class', 'interface', 'enum', 'record', 'struct', 'module' },
+          template.alias
+        )
+      then
+        table.insert(
+          items,
+          cmd {
+            label = template.alias,
+            cmd = { 'dotnet', 'new', template.alias, '-n' },
+            append_name = true,
+            before_creation = dn_util.transform_by_lang { append_ext = true },
+          }
+        )
       end
       ::continue::
     end
