@@ -25,20 +25,14 @@ vim.api.nvim_create_user_command('NewItem', function(args)
   end
 
   local groups = require('new-item.groups')
-  if args.args == 'gitignore' then
-    picker(groups.gitignore:get_items())
-  elseif args.args == 'gitattributes' then
-    picker(groups.gitattributes:get_items())
+  if args.args and args.args ~= '' then
+    picker(groups[args.args]:get_items())
   else
     local items = vim
       .iter(vim.tbl_values(groups))
       :filter(function(group)
         ---@cast group new-item.ItemGroup
-        if type(group.cond) == 'boolean' then
-          return group.cond --[[@as boolean]]
-        else
-          return group.cond and group.cond() or false
-        end
+        return util.fn_or_val(group.cond) --[[@as boolean]]
       end)
       :map(function(group)
         ---@cast group new-item.ItemGroup
@@ -53,7 +47,7 @@ vim.api.nvim_create_user_command('NewItem', function(args)
   end
 end, {
   nargs = '?',
-  complete = function() return { 'gitignore', 'gitattributes' } end,
+  complete = function() return vim.tbl_keys(require('new-item.groups')) end,
   desc = 'Create a new item',
 })
 
