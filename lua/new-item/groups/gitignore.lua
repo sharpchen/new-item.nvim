@@ -14,6 +14,7 @@ return vim
   :map(
     function(path)
       return file {
+        iname = vim.fn.fnamemodify(path, ':t:r'),
         label = vim.fs.basename(path),
         nameable = false,
         default_name = '.gitignore',

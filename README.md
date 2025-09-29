@@ -41,6 +41,7 @@ This plugin was designed to be a **scaffold** to write your own template with co
 An **Item** is a template knows how to create a thing, an `ItemGroup` is a dynamically conditioned container for items.
 This plugin was written in a object-oriented style, each type of item was derived from `new-item.Item`, any kind of item has the following fields:
 
+- `iname`: identifier for the item.
 - `suffix` and `prefix`: parts around the name of item.
     - for example, to create a typescript test file, the `suffix` can be `.test.ts`, and the final name would be `<name>.test.ts`.
 - `nameable`: indicating whether the item can have a custom name.
@@ -98,12 +99,14 @@ This plugin was written in a object-oriented style, each type of item was derive
 local file = require('new-item.items').FileItem
 require('new-item.groups').javascript:append { -- assuming javascript is a existing item group
   file {
-    label = 'new javascript file',
-    content = 'console.log("%s")', -- %s would be replaced by name input
+    iname = 'javascript',
+    label = 'javascript file',
+    content = 'console.log("%s")', -- %s will be replaced by name input
     filetype = 'javascript', -- for treesitter highlighting
     suffix = '.js' -- extension of the file
   }
   file {
+    iname = 'prettierrc',
     label = '.prettierrc',
     edit = false, -- do not create the file directly but open a buffer with content
     link = vim.fn.expand('~/.prettierrc'), -- use content of an existing file
@@ -116,6 +119,7 @@ require('new-item.groups').javascript:append { -- assuming javascript is a exist
 require('new-item.groups').md:append {
   -- use the file name as top level title
   file {
+    iname = 'markdown',
     label = 'Markdown file',
     filetype = 'markdown',
     suffix = '.md',
@@ -145,12 +149,14 @@ The following examples shows how it wrap `dotnet new` command as a template.
 local cmd = require('new-item.items').CmdItem
 require('new-item.groups').dotnet:append {
   cmd {
-    label = 'buildtargets',
+    iname = 'buildtargets',
+    label = 'Directory.Build.targets',
     nameable = false,
     default_name = 'Directory.Build.targets',
     cmd = { 'dotnet', 'new', 'buildtargets' },
   },
   cmd {
+    iname = 'class',
     label = 'class',
     cmd = { 'dotnet', 'new', 'class', '-lang', 'C#', '--name' } -- argument of --name is not given
     before_creation = function(item, ctx)
@@ -159,6 +165,7 @@ require('new-item.groups').dotnet:append {
   },
   -- or use append_name so you don't have to manually append it
   cmd {
+    iname = 'slnx',
     label = 'slnx',
     cmd = { 'dotnet', 'new', 'sln', '--format', 'slnx', '--name' },
     suffix = '.slnx',
@@ -221,6 +228,34 @@ require('new-item.groups').dotnet:append {
 }
 ```
 
+#### Override Item
+
+`group.<iname>:override` allows to modify the item specification with `final` and `prev` states.
+`final` is the current state of the item(to be modified), `prev` is the original state of the item.
+The following example is how you can append extra operation to `before_creation` phase of item `buildprops`, from `dotnet` group.
+
+```lua
+groups.dotnet.buildprops:override(function(final, prev)
+  final.before_creation = function(item, ctx)
+    -- additional operations...
+    prev.before_creation(item, ctx)
+  end
+end)
+```
+
+If loading a group involves asynchronous operation, you would need to bind a callback using `ItemGroup.on_loaded` to do the override.
+
+```lua
+groups.dotnet:on_loaded(function(self)
+  self.buildprops:override(function(final, prev)
+    final.before_creation = function(item, ctx)
+      -- additional operations...
+      prev.before_creation(item, ctx)
+    end
+  end)
+end)
+```
+
 ### Writing item group
 
 Each item must be of certain group, each group has a `cond` field to be evaluated dynamically to indicate whether its contained items should present each time your invoke the picker.
@@ -259,6 +294,18 @@ require('new-item.groups').javascript = {
 ```
 
 You can add any number of groups for your specific working environments.
+
+#### Override ItemGroup
+
+`ItemGroup` was designed as a proxy table, so it has a dedicated method `ItemGroup:override` to alter its state.
+That is, do not assign or alter any field to an `ItemGroup` with dot accessor, use `override` instead.
+
+```lua
+group:override {
+  cond = true,
+  enable_builtin = false
+}
+```
 
 ### How does it work
 

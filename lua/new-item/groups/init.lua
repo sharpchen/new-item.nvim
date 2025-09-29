@@ -6,8 +6,10 @@ local M = setmetatable({}, {
   ---@param group_name string
   ---@param tbl new-item.ItemGroup
   __newindex = function(this, group_name, tbl)
+    -- NOTE: ItemGroup:new would generate a proxy table
+    -- so we should alter tbl first
+    tbl.name = group_name
     local new_group = ItemGroup:new(tbl)
-    new_group.name = group_name
     rawset(this, group_name, new_group)
   end,
 })
@@ -20,10 +22,13 @@ if vim.fn.executable('dotnet') == 1 then
         function(name, _) return name:match('%.slnx?$') or name:match('%.%w+proj$') end
       ) ~= nil
     end,
-    fetch_builtins = function(self)
+    load_builtins = function(self)
       ---@diagnostic disable-next-line: invisible
-      self.builtin_items = {}
-      require('new-item.groups.dotnet').register_items_to(self)
+      self:override { builtin_items = {} }
+      require('new-item.groups.dotnet').register_items_to(
+        self,
+        function() self:invoke_on_loaded() end
+      )
     end,
   }
 end

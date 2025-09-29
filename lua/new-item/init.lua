@@ -54,7 +54,7 @@ end, {
 function M.load_groups()
   for _, group in pairs(require('new-item.groups')) do
     if util.fn_or_val(group.cond) then
-      _ = group.fetch_builtins and group:fetch_builtins()
+      _ = group.load_builtins and group:load_builtins()
     end
   end
 end

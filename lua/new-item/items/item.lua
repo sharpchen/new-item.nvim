@@ -9,6 +9,7 @@ local util = require('new-item.util')
 
 ---@class new-item.Item
 ---@field label string Name displayed as entry in picker
+---@field iname string Identifier of the item
 ---@field desc? string Description of the item
 ---@field invoke? fun(self: self) Activate the creation for this item
 ---@field private _create? fun(self: self) Method to apply the item(not factory)
@@ -22,7 +23,6 @@ local util = require('new-item.util')
 ---@field suffix? string Trailing part of item name. Can be file extension such as `.lua` or suffix like `.test.ts`
 ---@field prefix? string Leading part of item name
 ---@field private _on_creation_failed? fun(self: self) Actions should perform on creation failed
----@field get_path? fun(self, o): string Construct a path based on context
 ---@overload fun(o: unknown): unknown
 local Item = {
   nameable = true,
@@ -48,6 +48,16 @@ local Item = {
   end,
   _on_creation_failed = function(self) end,
 }
+
+---@param arg new-item.AnyItem
+---@overload fun(self: new-item.AnyItem, fn: fun(self: new-item.AnyItem, prev: new-item.AnyItem))
+function Item:override(arg)
+  if type(arg) == 'function' then
+    arg(self, vim.deepcopy(self))
+  else
+    self = vim.tbl_deep_extend('force', self, arg)
+  end
+end
 
 ---@param o { name_input: string?, cwd: string, default_name: string }
 function Item:get_path(o)
