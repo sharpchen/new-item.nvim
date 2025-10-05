@@ -54,10 +54,7 @@ function M.async_cmd(cmd, cb, opts)
     if out.code ~= 0 then
       vim.schedule(function()
         M.error(
-          ('async job for `%s` exited with code %d.'):format(
-            table.concat(cmd, ' '),
-            out.code
-          )
+          ('async job for %s exited with code %d.'):format(vim.inspect(cmd), out.code)
         )
         M.error((('error: %s'):format(out.stderr)))
       end)
