@@ -166,8 +166,8 @@ function M.validate_name(item)
     vim.validate(
       'default_name',
       item.default_name,
-      'string',
-      'not empty when not name_customizable'
+      { 'string', 'function' },
+      'not empty when not nameable'
     )
   end
 end
