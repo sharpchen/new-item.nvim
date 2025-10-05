@@ -100,6 +100,7 @@ function M.register_items_to(group, cb)
         iname = 'apicontroller',
         label = 'apicontroller',
         cmd = { 'dotnet', 'new', 'apicontroller', '-n' },
+        suffix = '.cs',
         append_name = true,
         before_creation = dn_util.transform_by_ns,
       },
