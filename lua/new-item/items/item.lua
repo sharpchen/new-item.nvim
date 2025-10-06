@@ -54,6 +54,8 @@ local Item = {
 function Item:override(arg)
   if type(arg) == 'function' then
     arg(self, vim.deepcopy(self))
+    util.validate_args(self)
+    util.validate_name(self)
   else
     self = vim.tbl_deep_extend('force', self, arg)
   end
@@ -80,6 +82,6 @@ function Item:new(o)
   return setmetatable(o or {}, self)
 end
 
----@alias new-item.AnyItem (new-item.Item | new-item.FileItem | new-item.FolderItem | new-item.CmdItem)
+---@alias new-item.AnyItem (new-item.Item | new-item.FileItem |  new-item.CmdItem)
 
 return Item

@@ -10,7 +10,6 @@ local entries
 
 local StringPreviewer = require('fzf-lua.previewer.builtin').base:extend()
 local FileItem = require('new-item.items').FileItem
-local FolderItem = require('new-item.items').FolderItem
 local CmdItem = require('new-item.items').CmdItem
 
 function StringPreviewer:new(o, opts, fzf_win)
@@ -33,8 +32,6 @@ function StringPreviewer:populate_preview_buf(entry_str)
     util.fill_buf { buf = tmpbuf, content = content }
     vim.bo[tmpbuf].filetype = ft
     self:set_preview_buf(tmpbuf)
-  elseif getmetatable(item) == FolderItem then
-    ---TODO: handle FolderItem
   elseif getmetatable(item) == CmdItem then
     ---@cast item new-item.CmdItem
     local content = table.concat(item.cmd, ' ')
@@ -70,8 +67,6 @@ local function to_fzf_entries(items)
         local icon = util.icon_by_ft('sh', item.suffix)
         vim.validate('icon', icon, 'string')
         return string.format('%d: %s  %s', idx, icon, item.label)
-      elseif getmetatable(item) == FolderItem then
-        --TODO:
       end
     end)
     :totable()

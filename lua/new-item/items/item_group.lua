@@ -4,9 +4,6 @@
 ---@field items? new-item.AnyItem[]
 ---@field private builtin_items? new-item.AnyItem[]
 ---@field enable_builtin? boolean show builtin items
----@field new? fun(self: self, t: table): table
----@field __index? any
----@field __newindex? any
 ---@field append? fun(self, items: new-item.AnyItem[]) -- append user defined items
 ---@field load_builtins? fun(self: new-item.ItemGroup) how to load/reload builtin items that are typically reliant to external data
 ---@field private _on_loaded_events? (fun(self: new-item.ItemGroup))[]

@@ -1,5 +1,3 @@
-local file = require('new-item.items').FileItem
-local dir = require('new-item.items').FolderItem
 local ItemGroup = require('new-item.items').ItemGroup
 ---@type table<string, new-item.ItemGroup>
 local M = setmetatable({}, {
