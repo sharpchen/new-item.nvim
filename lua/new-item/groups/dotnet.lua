@@ -110,7 +110,9 @@ function M.register_items_to(group, cb)
         filetype = 'json',
         nameable = false,
         default_name = 'Settings.XamlStyler',
-        content = util.dedent([[
+        content = vim.text.indent(
+          0,
+          [[
         {
             "IndentWithTabs": false,
             "IndentSize": 4,
@@ -155,7 +157,8 @@ function M.register_items_to(group, cb)
             "FormatOnSave": true,
             "CommentPadding": 2,
         }
-        ]]),
+        ]]
+        ),
       },
     })
 

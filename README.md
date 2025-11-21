@@ -196,13 +196,12 @@ A context contains temporary values generated during the creation, such as `name
 The following example shows how to use a `FileItem` create a new `C#` class using its current folder structure as namespace.
 
 ```lua
-local util = require('new-item.util')
 require('new-item.groups').dotnet:append {
   file {
     label = 'class',
     suffix = '.cs',
     filetype = 'cs',
-    content = util.dedent([[
+    content = vim.text.dedent(0, [[
     namespace <namespace>;
     public class %s { }
     ]]),

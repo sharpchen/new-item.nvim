@@ -71,6 +71,7 @@ function M.warn(msg) vim.notify(msg, vim.log.levels.WARN, { title = ' New-Item' 
 ---@param msg string
 function M.error(msg) vim.notify(msg, vim.log.levels.ERROR, { title = ' New-Item' }) end
 
+--- WARN: use vim.text.indent instead
 --- dedent lua raw string
 ---@param s string
 function M.dedent(s)
