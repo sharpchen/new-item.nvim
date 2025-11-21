@@ -248,6 +248,25 @@ function M.register_items_to(group, cb)
             before_creation = dn_util.transform_by_lang { append_ext = true },
           }
         )
+      elseif
+        vim.list_contains({
+          'mstest-class',
+          -- nunit-test creates unexpected new folder, probably a bug from upstream
+          --[[ 'nunit-test' ]]
+        }, template.alias)
+      then
+        table.insert(
+          items,
+          cmd {
+            iname = template.alias,
+            label = template.alias,
+            cmd = { 'dotnet', 'new', template.alias, '-n' },
+            append_name = true,
+            before_creation = function(item, ctx)
+              dn_util.transform_by_lang { append_ext = true }(item, ctx)
+            end,
+          }
+        )
       end
       ::continue::
     end
