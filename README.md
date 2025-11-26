@@ -23,15 +23,17 @@ This plugin was designed to be a **scaffold** to write your own template with co
       picker = {
         name = 'snacks', -- or 'fzf-lua' or 'telescope'
         preview = false,
-      }
+      },
+      init = function(groups, ctors)
+        -- setup your custom groups and items here
+        groups.mygroup = {
+          items = {
+            ctors.file {...}
+          }
+        }
+      end
     }
     vim.keymap.set('n', '<leader>ni', '<cmd>NewItem<CR>')
-    require('new-item.groups').my_group_name = {
-      cond = true,
-      items = {--[[  ...  ]]}
-    }
-    -- IMPORTANT: load after all groups are defined
-    require('new-item').load_groups()
   end
 }
 ```
@@ -96,8 +98,8 @@ This plugin was written in a object-oriented style, each type of item was derive
 </details>
 
 ```lua
-local file = require('new-item.items').FileItem
-require('new-item.groups').javascript:append { -- assuming javascript is a existing item group
+local file = ctors.file
+groups.javascript:append { -- assuming javascript is a existing item group
   file {
     iname = 'javascript',
     label = 'javascript file',
@@ -116,7 +118,7 @@ require('new-item.groups').javascript:append { -- assuming javascript is a exist
     cwd = function() return vim.fn.getcwd() end, -- should always add to project root
   },
 }
-require('new-item.groups').md:append {
+groups.md:append {
   -- use the file name as top level title
   file {
     iname = 'markdown',
@@ -146,8 +148,8 @@ require('new-item.groups').md:append {
 The following examples shows how it wrap `dotnet new` command as a template.
 
 ```lua
-local cmd = require('new-item.items').CmdItem
-require('new-item.groups').dotnet:append {
+local cmd = ctors.cmd
+groups.dotnet:append {
   cmd {
     iname = 'buildtargets',
     label = 'Directory.Build.targets',
@@ -196,7 +198,7 @@ A context contains temporary values generated during the creation, such as `name
 The following example shows how to use a `FileItem` create a new `C#` class using its current folder structure as namespace.
 
 ```lua
-require('new-item.groups').dotnet:append {
+groups.dotnet:append {
   file {
     label = 'class',
     suffix = '.cs',
@@ -284,7 +286,7 @@ Each item must be of certain group, each group has a `cond` field to be evaluate
 For example, you may require javascript templates to present only when it found a `package.json` file on root.
 
 ```lua
-require('new-item.groups').javascript = {
+groups.javascript = {
   cond = function()
     return vim.fs.root(vim.fn.expand('%:p:h'), 'package.json') ~= nil
   end,
