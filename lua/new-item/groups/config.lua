@@ -1,13 +1,14 @@
 local file = require('new-item.items').FileItem
 local cmd = require('new-item.items').CmdItem
 return {
+  -- FIXME:
   cmd {
-    iname = 'tsconfig',
+    id = 'tsconfig',
     label = 'tsconfig.json',
     cmd = { 'tsc', '--init' },
     nameable = false,
     default_name = 'tsconfig.json',
-    before_creation = function(item, ctx)
+    before_create = function(item, ctx)
       if
         #vim.fs.find(
           { 'bun.lock', 'bun.lockb' },

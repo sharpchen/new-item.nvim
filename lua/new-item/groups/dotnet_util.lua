@@ -1,6 +1,7 @@
 local util = require('new-item.util')
 local M = {
   msbuild = {},
+  completion = {},
 }
 
 --- searching upward to get nearest project file path from cwd
@@ -39,61 +40,44 @@ function M.msbuild.get_property(project, prop)
   return result
 end
 
--- parse templates from `dotnet new list`
----@param kind 'item' | 'project'
----@param callback fun(templates: DotnetTemplate[])
-function M.get_templates(kind, callback)
-  local dn_gt_7 = false
-  util.async_cmd({ 'dotnet', '--version' }, function(version)
-    dn_gt_7 = vim.version.ge(version, '7.0.0') --[[@as boolean]]
-    util.async_cmd({
-      'dotnet',
-      'new',
-      (dn_gt_7 and 'list' or '--list'),
-      '--type=' .. kind,
-      -- NOTE: we should probably not ignore constraints
-      -- let it conditionally present by project types
-      -- '--ignore-constraints',
-    }, function(res)
-      local templates = vim
-        .iter(vim.split(res, '\n'))
-        :skip(4)
-        :map(function(row)
-          ---@cast row string
-          ---@type ...string?
-          local fullname, alias, lang, tag = unpack(vim.split(vim.trim(row), '%s%s+'))
-          if tag == nil then
-            tag = lang
-            ---@diagnostic disable-next-line: cast-local-type
-            lang = nil
-          end
-          return {
-            fullname = fullname,
-            alias = alias,
-            lang = lang,
-            tag = tag,
-          }
-        end)
-        :totable()
-
-      -- split aliases into independent templates
-      for _, template in ipairs(templates) do
-        ---@cast template DotnetTemplate
-        if template.alias:find(',') then
-          local aliases = vim.split(template.alias, ',')
-          template.alias = aliases[1]
-          for i = 2, #aliases do
-            table.insert(
-              templates,
-              vim.tbl_extend('keep', { alias = aliases[i] }, template)
-            )
-          end
-        end
+---@param stdout string
+---@return DotnetTemplate[]
+function M.parse_template(stdout)
+  ---@alias DotnetTemplate { fullname: string, alias: string, lang?: string, tag: string }
+  local templates = vim
+    .iter(vim.split(stdout, '\n'))
+    :skip(4)
+    :map(function(row)
+      ---@cast row string
+      ---@type ...string?
+      local fullname, alias, lang, tag = unpack(vim.split(vim.trim(row), '%s%s+'))
+      if tag == nil then
+        tag = lang
+        ---@diagnostic disable-next-line: cast-local-type
+        lang = nil
       end
+      return {
+        fullname = fullname,
+        alias = alias,
+        lang = lang,
+        tag = tag,
+      }
+    end)
+    :totable()
 
-      callback(templates)
-    end, { cwd = vim.uv.cwd() })
-  end)
+  -- split aliases into independent templates
+  for _, template in ipairs(templates) do
+    ---@cast template DotnetTemplate
+    if template.alias:find(',') then
+      local aliases = vim.split(template.alias, ',')
+      -- priorities name with dot(.) `global.json` for example
+      -- so we can use the alias name as file name when constructing items
+      template.alias = vim.iter(aliases):find(function(a) return a:find('%.') end)
+        or aliases[1]
+    end
+  end
+
+  return templates
 end
 
 --- construct namespace base on context
@@ -145,6 +129,33 @@ function M.transform_by_lang(opts)
       util.warn('project file not found.')
     end
   end
+end
+
+--- get sdk version from current environment
+---@param ctx new-item.ItemCreationContext
+---@return string
+function M.sdk_version(ctx)
+  local version
+  util
+    .async_cmd({ 'dotnet', '--version' }, function(out) version = out end, { cwd = ctx.cwd })
+    :wait()
+  return version
+end
+
+function M.completion.sdk_versions()
+  local versions
+  util
+    .async_cmd({ 'dotnet', '--list-sdks' }, function(out)
+      versions = vim
+        .iter(vim.split(out, '\n', { trimempty = true }))
+        :map(function(line)
+          -- xx.x.xxx [path/to/share/dotnet/sdk]
+          return vim.split(line, '%s+')[1]
+        end)
+        :totable()
+    end)
+    :wait()
+  return versions or {}
 end
 
 return M

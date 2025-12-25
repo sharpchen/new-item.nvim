@@ -9,7 +9,17 @@ Creating items from context-aware templates.
 The idea came from the common feature of modern IDEs that, allowing to create a file based on template and context, things like **Add new class** in the menu while you right-click in the explorer.
 This plugin was designed to be a **scaffold** to write your own template with context-aware capabilities.
 
-## Installation
+## Features
+
+- Wrapping templates declaratively for file or shell command.
+- Context-aware with phases available for each template item.
+- Dynamic/customizable visibility for groups, matching for your working environment.
+- Allows overriding existing groups/items.
+- Allows to import external item sources to your groups.
+- Reloads on `Config.setup` and `DirChanged` automatically.
+- Supports picking items using `vim.ui.select` or pickers([snacks.nvim](https://github.com/folke/snacks.nvim), [fzf-lua](https://github.com/ibhagwan/fzf-lua) or [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim)) with preview.
+
+## Setup
 
 - [lazy.nvim](https://github.com/folke/lazy.nvim)
 
@@ -20,308 +30,207 @@ This plugin was designed to be a **scaffold** to write your own template with co
   submodules = true,
   config = function()
     require('new-item').setup {
-      picker = {
-        name = 'snacks', -- or 'fzf-lua' or 'telescope'
-        preview = false,
-      },
-      init = function(groups, ctors)
-        -- setup your custom groups and items here
-        groups.mygroup = {
-          items = {
-            ctors.file {...}
-          }
+      groups = {
+        my_group = {
+          visible = function() return ... end, -- your dynamic condition for the group
+          items = { ... } -- write your template items here
+          sources = { ... } -- or import template items from sources
         }
-      end
+      }
     }
     vim.keymap.set('n', '<leader>ni', '<cmd>NewItem<CR>')
   end
 }
 ```
 
-## Item & Item Group
-
-An **Item** is a template knows how to create a thing, an `ItemGroup` is a dynamically conditioned container for items.
-This plugin was written in a object-oriented style, each type of item was derived from `new-item.Item`, any kind of item has the following fields:
-
-- `iname`: identifier for the item.
-- `suffix` and `prefix`: parts around the name of item.
-    - for example, to create a typescript test file, the `suffix` can be `.test.ts`, and the final name would be `<name>.test.ts`.
-- `nameable`: indicating whether the item can have a custom name.
-    - for example, a `.gitignore` is always `.gitignore`, it should be not `nameable`.
-    - if an item is not `nameable`, it must have a `default_name`.
-- `default_name`: a default value for the name, can evaluate dynamically.
-    - `default_name` is the pre-filled input of `vim.ui.input` during creation when the item is `nameable`.
-- `cwd`: the folder where the item would be created at, **defaults to parent of current buffer.**
-- `edit`: presume the item created is a file, and open it after creation.
-- `extra_args`; an array of argument names, each argument will have an input request during creation.
-    - you can use these arguments in `before_creation` to do transformation.
-- `before_creation(item, ctx)`: to perform a transformation before actually creating the item
-    - you may transform things like the content or path, even the item template itself(it's an copy of original one)
-- `after_creation(item, ctx)`: to perform after creation
+### Default Config
 
 <details>
-<summary>Item base definition</summary>
+<summary>click to expand</summary>
 
 ```lua
----@class new-item.Item
----@field label string Name displayed as entry in picker
----@field desc? string Description of the item
----@field invoke? fun(self: self) Activate the creation for this item
----@field cwd? fun(): string Returns which parent folder to create the file, default to parent of current buffer
----@field extra_args? string[] Extra argument names to be specified on creation
----@field before_creation? fun(self: new-item.AnyItem, ctx: new-item.ItemCreationContext)
----@field after_creation? fun(self: new-item.AnyItem, ctx: new-item.ItemCreationContext)
----@field nameable? boolean True if the file item should have a custom name on creation
----@field default_name? string | fun(): string Default name of the item to be created
----@field suffix? string Trailing content of the constructed item name. Can be file extension such as `.lua` or suffix like `.test.ts`
----@field prefix? string Leading content of the constructed item name
-```
-
-</details>
-
-### Writing items
-
-1. `FileItem`: creating item from string content.
-
-<details>
-<summary>FileItem definition</summary>
-
-```lua
----@class (exact) new-item.FileItem : new-item.Item
----@field filetype? string
----@field content? string
----@field edit? boolean Use :edit to create a buffer with pre-fill content instead of direct creation
----@field link? string | fun(): string Use content from another existing file
----@overload fun(o: new-item.FileItem): new-item.FileItem
-```
-
-</details>
-
-```lua
-local file = ctors.file
-groups.javascript:append { -- assuming javascript is a existing item group
-  file {
-    iname = 'javascript',
-    label = 'javascript file',
-    content = 'console.log("%s")', -- %s will be replaced by name input
-    filetype = 'javascript', -- for treesitter highlighting
-    suffix = '.js' -- extension of the file
-  }
-  file {
-    iname = 'prettierrc',
-    label = '.prettierrc',
-    edit = false, -- do not create the file directly but open a buffer with content
-    link = vim.fn.expand('~/.prettierrc'), -- use content of an existing file
-    nameable = false, -- .prettierrc is always .prettierrc
-    default_name = '.prettierrc',
-    filetype = 'json',
-    cwd = function() return vim.fn.getcwd() end, -- should always add to project root
-  },
-}
-groups.md:append {
-  -- use the file name as top level title
-  file {
-    iname = 'markdown',
-    label = 'Markdown file',
-    filetype = 'markdown',
-    suffix = '.md',
-    content = [[# %s]],
-  },
-}
-```
-
-2. `CmdItem`: creating item by executing a shell command, and we can presume the item created is a file.
-
-<details>
-<summary>CmdItem definition</summary>
-
-```lua
----@class (exact) new-item.CmdItem : new-item.Item
----@field cmd string[]
----@field edit? boolean Whether to open the item after creation, default to true
----@field append_name? boolean whether to append ctx.name_input to item.cmd
----@overload fun(o: new-item.CmdItem): new-item.CmdItem
-```
-
-</details>
-
-The following examples shows how it wrap `dotnet new` command as a template.
-
-```lua
-local cmd = ctors.cmd
-groups.dotnet:append {
-  cmd {
-    iname = 'buildtargets',
-    label = 'Directory.Build.targets',
-    nameable = false,
-    default_name = 'Directory.Build.targets',
-    cmd = { 'dotnet', 'new', 'buildtargets' },
-  },
-  cmd {
-    iname = 'class',
-    label = 'class',
-    cmd = { 'dotnet', 'new', 'class', '-lang', 'C#', '--name' } -- argument of --name is not given
-    before_creation = function(item, ctx)
-      item.cmd = vim.list_extend(item.cmd, { ctx.name_input }) -- append name argument
-    end
-  },
-  -- or use append_name so you don't have to manually append it
-  cmd {
-    iname = 'slnx',
-    label = 'slnx',
-    cmd = { 'dotnet', 'new', 'sln', '--format', 'slnx', '--name' },
-    suffix = '.slnx',
-    append_name = true, -- implicitly append name_input to item.cmd
-    default_name = function() return vim.fs.basename(vim.fn.getcwd()) end, -- use root folder name as default
-  }
-}
-```
-
-#### Using transformation
-
-You can transform  `item` and `ctx` on `before_creation` to let it be a context-aware template.
-A context contains temporary values generated during the creation, such as `name_input`, `cwd` etc.
-
-<details>
-<summary>ItemCreationContext definition</summary>
-
-```lua
----@class new-item.ItemCreationContext
----@field name_input? string name specified from vim.ui.input
----@field args? table<string, string> args input from vim.ui.input
----@field path? string path of the item to be created
----@field cwd? string the folder where the item would be created at
-```
-
-</details>
-
-The following example shows how to use a `FileItem` create a new `C#` class using its current folder structure as namespace.
-
-```lua
-groups.dotnet:append {
-  file {
-    label = 'class',
-    suffix = '.cs',
-    filetype = 'cs',
-    content = vim.text.dedent(0, [[
-    namespace <namespace>;
-    public class %s { }
-    ]]),
-    before_creation = function(item, ctx)
-      local proj
-      vim.fs.root(ctx.cwd, function(name, path)
-        if name:match('%.%w+proj$') then proj = vim.fs.joinpath(path, name) end
-      end)
-      local root_ns, ns
-      vim.system({ 'dotnet', 'msbuild', proj, '-getProperty:RootNamespace' }, { text = true },
-          function(out)
-            if out.code == 0 then root_ns = vim.trim(out.stdout) end
-          end):wait()
-      local rel = vim.fs.relpath(vim.fs.dirname(proj), ctx.cwd)
-      if rel and rel ~= '.' then
-        ns = root_ns .. '.' .. rel:gsub('/', '.')
-      else
-        ns = root_ns
-      end
-      item.content = item.content:gsub('<namespace>', ns)
+---@class (exact) new-item.Config
+---@field picker new-item.PickerConfig | fun(items: new-item.AnyItem[]) picker for selecting item
+---@field init? fun(groups: table<string, new-item.ItemGroup>, ctors: { file: new-item.FileItem, cmd: new-item.CmdItem })
+---@field groups? table<string, Partial<new-item.ItemGroup>>
+---@field transform_path? fun(path: string): string Global transformer for constructed path
+---@field default_cwd? fun(): string? Return nil if current evaluation should be terminated
+M.config = {
+  picker = {
+    name = 'select',
+    preview = false,
+    entry_format = function(group, item)
+      return string.format('[%s] %s', group.name, item.label)
     end,
   },
+  init = nil,
+  transform_path = function(path) return path:gsub('^oil:', '') end,
+  default_cwd = function()
+    local path = vim.fs.dirname(vim.api.nvim_buf_get_name(vim.api.nvim_get_current_buf()))
+    -- unnamed buffer and scratch buffer have parent '.'
+    -- convert it to absolute path
+    if path == '.' then path = vim.uv.cwd() end
+    return path
+  end,
+  groups = { },
 }
-```
-
-#### Override Item
-
-`group.<iname>:override` allows to modify the item specification with `final` and `prev` states.
-`final` is the current state of the item(to be modified), `prev` is the original state of the item.
-The following example is how you can append extra operation to `before_creation` phase of item `buildprops`, from `dotnet` group.
-
-```lua
-groups.dotnet.buildprops:override(function(final, prev)
-  final.before_creation = function(item, ctx)
-    -- additional operations...
-    prev.before_creation(item, ctx)
-  end
-end)
-```
-
-If loading a group involves asynchronous operation, you would need to bind a callback using `ItemGroup.on_loaded` to do the override.
-
-```lua
-groups.dotnet:on_loaded(function(self)
-  self.buildprops:override(function(final, prev)
-    final.before_creation = function(item, ctx)
-      -- additional operations...
-      prev.before_creation(item, ctx)
-    end
-  end)
-end)
-```
-
-### Writing item group
-
-Each item must be of certain group, each group has a `cond` field to be evaluated dynamically to indicate whether its contained items should present each time your invoke the picker.
-
-- `cond(): boolean`: indicating whether its items should present in picker.
-- `items`: user-defined templates.
-- `builtin_items`: pre-defined templates from the plugin or other sources.
-- `enable_builtin`: whether to include `builtin_items` in picker.
-- `append(self, items)`: append extra templates to `itemgroup.items` list.
-
-<details>
-<summary>ItemGroup definition</summary>
-
-```lua
----@class new-item.ItemGroup
----@field name? string
----@field cond? boolean | fun(): boolean
----@field items? new-item.AnyItem[]
----@field enable_builtin? boolean show builtin items
----@field private builtin_items? new-item.AnyItem[]
----@field append? fun(self, items: new-item.AnyItem[]) -- append user defined items
----@field get_items? fun(self): new-item.AnyItem[]
 ```
 
 </details>
 
+## Quick Start
+
+### Try Out Presets
+
+If you currently don't have any idea for writing a template, you can try out presets. See [using presets](#using-presets)
+
+### Command
+
+- `:NewItem`: prompt a picker with candidate items that are *visible in current environment*.
+- `:NewItem <group>`: pick an item from candidates of the group
+- `:NewItem <group> <item>`: invoke certain item from group.
+- `:NewItemReload`: forcibly reload sources of all *visible* groups
+
+### Writing Groups
+
+A group describes how its child items(templates) can be presented as candidates in current environment.
+In general we recommend to construct groups on users' own, templates are either wrapped as sources to be added/declared in the group specification, or added as unbundled items to `ItemGroup.items`.
 For example, you may require javascript templates to present only when it found a `package.json` file on root.
+Similarly, you would expect to present `dotnet` templates only when it found a `.*proj` or solution file.
+
+> [!TIP]
+> See [writing-itemgroup](/DOCUMENTATION.md#writing-itemgroup)
 
 ```lua
-groups.javascript = {
-  cond = function()
-    return vim.fs.root(vim.fn.expand('%:p:h'), 'package.json') ~= nil
-  end,
-  items = {--[[...]]}
+require('new-item').setup {
+  groups = {
+    javascript = {
+      visible = function()
+        return vim.fs.root(vim.fn.expand('%:p:h'), 'package.json') ~= nil
+      end,
+      items = { ... }
+    },
+    dotnet = {
+      visible = function()
+        return vim.fs.root(
+          vim.fn.expand('%:p:h'),
+          function(name, _) return name:match('%.slnx?$') or name:match('%.%w+proj$') end
+        ) ~= nil
+      end,
+      sources = { -- add items from sources
+        {
+          name = 'builtin',
+          { ... }
+        },
+      },
+    }
+  }
 }
 ```
 
-You can add any number of groups for your specific working environments.
+### Writing Item
 
-#### Override ItemGroup
-
-`ItemGroup` was designed as a proxy table, so it has a dedicated method `ItemGroup:override` to alter its state.
-That is, do not assign or alter any field to an `ItemGroup` with dot accessor, use `override` instead.
+There's two major item type you can construct out-of-box, `new-item.FileItem` is to create file/buffer with string content/existing file, `new-item.CmdItem` is for creating file from shell command.
+You can try the following example to have a initial perception of the usage, see [writing-items](/DOCUMENTATION.md#writing-items) for more concrete examples.
 
 ```lua
-group:override {
-  cond = true,
-  enable_builtin = false
+local file = require('new-item.items').FileItem
+local cmd = require('new-item.items').CmdItem
+
+-- to create parent_of_current_buf/foo.txt
+local examplefile = file {
+  id = 'example',
+  label = 'Example file',
+  suffix = '.txt',
+  content = 'This is an example',
+}
+-- NOTE: of course you don't need invoke() when using picker
+-- this just exemplify a minimal usage
+examplefile:invoke() -- open the buffer with content set
+
+-- or create it using shell command
+local examplefile_by_command = cmd {
+  id = 'example',
+  label = 'Example file',
+  suffix = '.txt',
+  cmd = { 'touch', '$ITEM_NAME.txt' },
+  after_create = function(_, ctx)
+    vim.fn.setbufline(ctx.buf, 1, { 'This is an example' })
+  end
+}
+
+examplefile_by_command:invoke() -- creates the file
+```
+
+You can add these custom template items to specific groups using `new-item.Config.groups`
+
+```lua
+local file = require('new-item.items').FileItem
+local cmd = require('new-item.items').CmdItem
+
+require('new-item').setup {
+  groups = {
+    my_group = {
+      visible = true,
+      items = {
+        file { ... }
+        cmd { ... }
+      }
+    }
+  }
 }
 ```
 
-### How does it work
 
-1. an item name was decided by either `ctx.name_input` or `default_name`, depending on whether the template is `nameable`.
-2. path of the item to be created was composed by the item name, `ctx.cwd`, `item.suffix` and `item.prefix`.
-    - for `FileItem`, `%s` in `item.content` would be replaced by `ctx.name_input`
-    - for `CmdItem`, `ctx.name_input` would be appended to `item.cmd` when `item.append_name` is `true`
-3. `before_creation` was then triggered, might perform some transformation.
-4. `item:invoke()` was triggered to create the item.
-5. `after_creation` was triggered to perform a post action.
+### Override Items
 
-## Group Presets
+It's possible to modify existing items to get it fit with your use. See: [override-item](/DOCUMENTATION.md#override-item)
 
-- `gitignore`: a `.gitignore` collection from https://github.com/github/gitignore
-    - this group is not presented in picker by default, because there's too many of them, use `:NewItem gitignore` to create one.
-- `gitattributes`: a `.gitattributes` collection from https://github.com/gitattributes/gitattributes
-    - this group is not presented in picker by default, because there's too many of them, use `:NewItem gitattributes` to create one.
-- `dotnet`: some wrappers for `dotnet new` templates.
+## Using Presets
+
+### Gitignore & Gitattributes Preset
+
+To use community templates from [gitignore collection](https://github.com/github/gitignore) and [gitattributes collection](https://github.com/gitattributes/gitattributes), see the following lazy.nvim example.
+Note that `visible = false` is recommended for these templates because there's too many of them, and adding such file is fairly infrequent.
+You should manually call `:NewItem gitignore` to create one.
+
+```lua
+{
+  dependencies = {
+    'github/gitignore',
+    'gitattributes/gitattributes',
+  },
+  config = function()
+    require('new-item').setup {
+      groups = {
+        gitignore = {
+          visible = false,
+          sources = {
+            {
+              name = 'new-item',
+              function() return require('new-item.groups.gitignore')() end,
+            },
+          },
+        },
+        gitattributes = {
+          visible = false,
+          sources = {
+            {
+              name = 'new-item',
+              function() return require('new-item.groups.gitattributes')() end,
+            },
+          },
+        },
+      },
+    }
+  end
+}
+```
+
+> [!NOTE]
+> If you installed the gitattributes/gitignore collection in a non-default name, you can pass the name to `require('new-item.groups.gitattributes')(name)`
+
+### Dotnet Preset
+
+Preset items for `dotnet new <template>` are currently managed within the plugin itself, you don't have to configure anything but requires `dotnet` cli(.NET Core).
+

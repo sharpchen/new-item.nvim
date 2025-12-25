@@ -1,4 +1,5 @@
 local util = require('new-item.util')
+
 if not pcall(require, 'fzf-lua') then
   util.warn(
     'fzf-lua is not installed, please consider either installing it or use another picker'
@@ -11,6 +12,7 @@ local entries
 local StringPreviewer = require('fzf-lua.previewer.builtin').base:extend()
 local FileItem = require('new-item.items').FileItem
 local CmdItem = require('new-item.items').CmdItem
+local config = require('new-item.config').config
 
 function StringPreviewer:new(o, opts, fzf_win)
   StringPreviewer.super.new(self, o, opts, fzf_win)
@@ -26,7 +28,7 @@ function StringPreviewer:populate_preview_buf(entry_str)
   assert(item)
   if getmetatable(item) == FileItem then
     ---@cast item new-item.FileItem
-    local content = item:get_content() or item.desc or 'No Preview Available'
+    local content = tostring(item)
     local ft = item.filetype or 'plain'
     local tmpbuf = self:get_tmp_buffer()
     util.fill_buf { buf = tmpbuf, content = content }
@@ -34,10 +36,10 @@ function StringPreviewer:populate_preview_buf(entry_str)
     self:set_preview_buf(tmpbuf)
   elseif getmetatable(item) == CmdItem then
     ---@cast item new-item.CmdItem
-    local content = table.concat(item.cmd, ' ')
+    local content = tostring(item)
     local tmpbuf = self:get_tmp_buffer()
     util.fill_buf { buf = tmpbuf, content = content }
-    vim.bo[tmpbuf].filetype = 'sh'
+    vim.bo[tmpbuf].filetype = 'lua'
     self:set_preview_buf(tmpbuf)
   end
 end
@@ -59,14 +61,10 @@ local function to_fzf_entries(items)
     :map(function(idx, item)
       if getmetatable(item) == FileItem then
         ---@cast item new-item.FileItem
-        local icon = util.icon_by_ft(item.filetype, item.suffix)
-        vim.validate('icon', icon, 'string')
-        return string.format('%d: %s  %s', idx, icon, item.label)
+        return string.format('%d: %s  %s', idx, icon, item.__picker_label)
       elseif getmetatable(item) == CmdItem then
         ---@cast item new-item.CmdItem
-        local icon = util.icon_by_ft('sh', item.suffix)
-        vim.validate('icon', icon, 'string')
-        return string.format('%d: %s  %s', idx, icon, item.label)
+        return string.format('%d: %s  %s', idx, icon, item.__picker_label)
       end
     end)
     :totable()
@@ -76,8 +74,7 @@ end
 return function(items)
   entries = items
   require('fzf-lua').fzf_exec(to_fzf_entries(items), {
-    previewer = require('new-item.config').config.picker.preview and StringPreviewer
-      or nil,
+    previewer = config.picker.preview and StringPreviewer,
     winopts = {
       title = ' New-Item ',
     },
@@ -88,7 +85,7 @@ return function(items)
           local idx = tonumber(entry:match('(%d+):'))
           assert(idx)
           ---@diagnostic disable-next-line: invisible
-          entries[idx]._create(vim.deepcopy(entries[idx]))
+          entries[idx]:invoke()
         end
       end,
     },

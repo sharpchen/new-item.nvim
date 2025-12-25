@@ -2,17 +2,21 @@
 local uv = vim.loop or vim.uv
 local M = {}
 
----@param args string[]
+---@param args table<string, new-item.ItemCreationArgument>
 ---@return table<string, string>
-function M.prompt_for_args(args)
-  local args = {}
-  for _, arg in ipairs(args) do
-    vim.ui.input(
-      { prompt = string.format('%s: ', arg) },
-      function(input) args[arg] = input end
-    )
+function M.prompt_for_args(args, ctx)
+  local ret = {}
+  for name, spec in pairs(args) do
+    vim.ui.input({
+      prompt = name .. (spec.desc and string.format('(%s)', spec.desc) or '') .. ': ',
+      default = M.fn_or_val(spec.default, ctx),
+      -- completion = spec.complete,
+    }, function(input)
+      if not input then error(string.format('extra_args.%s cancelled', name), 0) end
+      ret[name] = input
+    end)
   end
-  return args
+  return ret
 end
 
 ---@param opts? { default?: string }
@@ -119,21 +123,39 @@ function M.path_exists(path) return uv.fs_stat(path) ~= nil end
 ---@return fun(self: new-item.AnyItem)
 function M.item_creator(opts)
   return function(self)
+    local config = require('new-item.config').config
     local item = self
     local cwd = item.cwd()
+
+    if not cwd then
+      M.error(
+        "`item.cwd == nil` indicates that it's not appropriate to execute with current context"
+      )
+      return
+    end
+
+    -- should transform cwd first because mkdir uses it
+    -- WARN: BUT this would call it one more time
+    -- which could produce unexpected result
+    -- so transform_path might not sufficient
+    -- we might need a transform_cwd
+    cwd = config.transform_path and config.transform_path(cwd) or cwd
+
     local name_input
     if item.nameable then
-      local default_input
-      if item.default_name then default_input = M.fn_or_val(item.default_name) end
+      if item.label:match('git') then print('fooo') end
+      local default_input = item.default_name and M.fn_or_val(item.default_name)
 
       ---@diagnostic disable-next-line: assign-type-mismatch
       name_input = M.prompt_for_name { default = default_input }
 
-      if name_input == nil then
-        M.warn('Cancelled')
-        return
-      elseif name_input == '' then
-        M.warn('Name input is empty, creation cancelled')
+      if name_input == nil or name_input == '' then
+        M.warn(
+          string.format(
+            'ctx.name_input is %s, creation cancelled',
+            name_input == '' and 'empty' or 'nil'
+          )
+        )
         return
       end
     end
@@ -144,15 +166,20 @@ function M.item_creator(opts)
     ---NOTE: path creation
     opts.path(item, ctx)
 
-    if item.extra_args and #item.extra_args > 0 then
-      ctx.args = M.prompt_for_args(item.extra_args)
+    if item.extra_args then
+      local ok, args = pcall(M.prompt_for_args, item.extra_args, ctx)
+      if not ok then
+        M.warn(args)
+        return
+      end
+      ctx.args = args
     end
 
     ---NOTE: transformation
     opts.transform(item, ctx)
 
     if M.path_exists(ctx.path) then
-      M.error('Item already exist')
+      M.error('Item already exists, operation cancelled.')
       return
     end
 
@@ -177,10 +204,104 @@ end
 function M.validate_args(item)
   if item.extra_args and #item.extra_args > 0 then
     vim.validate(
-      'before_creation',
-      item.before_creation,
+      'before_create',
+      item.before_create,
       'function',
-      'should have before_creation when extra_args was specified'
+      'should have before_create when extra_args was specified'
+    )
+  end
+end
+
+---@return new-item.ItemGroup[]
+function M.enabled_groups()
+  local groups = require('new-item.groups')
+  local ret = {}
+  for _, group in pairs(groups) do
+    if require('new-item.config').config.groups[group.name] ~= false then
+      table.insert(ret, group)
+    end
+  end
+  return ret
+end
+
+---@return new-item.ItemGroup[]
+function M.loaded_groups()
+  local groups = require('new-item.groups')
+  local ret = {}
+  for _, group in pairs(groups) do
+    if group.source_loaded then table.insert(ret, group) end
+  end
+  return ret
+end
+
+function M.visible_groups()
+  local groups = require('new-item.groups')
+  local ret = {}
+  for _, group in pairs(groups) do
+    if group.source_loaded and M.fn_or_val(group.visible) then
+      table.insert(ret, group)
+    end
+  end
+  return ret
+end
+
+function M.load_groups()
+  local groups = require('new-item.groups')
+  local config = require('new-item.config').config
+
+  for _, group in pairs(groups) do
+    local enabled = config.groups[group.name] ~= false -- nil defaults to true
+    if enabled and M.fn_or_val(group.visible) then group:load_sources() end
+  end
+end
+
+---@generic TInput
+---@generic TResult
+---@param spec { cond: (fun(input: TInput): boolean), action: (fun(input: TInput): TResult) }[]
+---@return fun(input: TInput | TInput[]): TResult[]
+function M.make_switch(spec)
+  return function(source)
+    local inputs = vim.islist(source) and source or { source }
+    local outputs = {}
+    for _, input in ipairs(inputs) do
+      for _, pair in ipairs(spec) do
+        if pair.cond(input) then
+          local out = pair.action(input)
+          _ = out and table.insert(outputs, out)
+          break -- only match once
+        end
+      end
+    end
+    return #outputs > 0 and outputs
+  end
+end
+
+---@param opts { cmd: string[], cwd: string, parse: (fun(stdout: string): any[]), switch: (fun(sources: any[]): any[]), callback: fun(items) }
+function M.parse_items(opts)
+  M.async_cmd(opts.cmd, function(out)
+    local sources = opts.parse(out)
+    local items = opts.switch(sources)
+    opts.callback(items)
+  end, { cwd = opts.cwd })
+end
+
+---@param path string
+---@return integer buffer number for the opened path
+function M.edit(path)
+  local buf = vim.fn.bufadd(path)
+  vim.bo[buf].buflisted = true
+  if M.path_exists(path) then vim.fn.bufload(buf) end
+  vim.api.nvim_set_current_buf(buf)
+  return buf
+end
+
+function M.warn_if_not_exists(path)
+  if not M.path_exists(path) then
+    M.warn(
+      string.format(
+        'Item path "%s" does not exist after creation, there might be a problem with the item definition',
+        path
+      )
     )
   end
 end

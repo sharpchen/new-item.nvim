@@ -1,4 +1,7 @@
 local util = require('new-item.util')
+local FileItem = require('new-item.items').FileItem
+local CmdItem = require('new-item.items').CmdItem
+
 if not pcall(require, 'telescope') then
   util.error(
     'telescope.nvim is not installed, please consider either installing it or use another picker'
@@ -19,8 +22,8 @@ return function(items)
         entry_maker = function(item)
           return {
             value = item,
-            display = item.label,
-            ordinal = item.label,
+            display = item.__picker_label,
+            ordinal = item.label or item.__picker_label,
           }
         end,
       },
@@ -30,32 +33,31 @@ return function(items)
         actions.select_default:replace(function()
           actions.close(prompt_bufnr)
           local item = action_state.get_selected_entry().value
-          _ = item and item._create(vim.deepcopy(item))
+          _ = item and item:invoke()
         end)
         return true
       end,
-      previewer = require('new-item.config').config.picker.preview
-          and require('telescope.previewers').new_buffer_previewer {
-            define_preview = function(self, entry, status)
-              local bufnr = self.state.bufnr
-              local content = ''
-              local ft = ''
-              local item = entry.value
-              if getmetatable(item) == require('new-item.items').FileItem then
-                ---@cast item new-item.FileItem
-                content = item:get_content() or item.desc or 'No Preview Available'
-                ft = item.filetype
-              elseif getmetatable(item) == require('new-item.items').CmdItem then
-                ---@cast item new-item.CmdItem
-                content = table.concat(item.cmd, ' ')
-                ft = 'sh'
-              end
+      previewer = config.picker.preview
+        and require('telescope.previewers').new_buffer_previewer {
+          define_preview = function(self, entry, status)
+            local bufnr = self.state.bufnr
+            local content = ''
+            local ft = ''
+            local item = entry.value
+            if getmetatable(item) == FileItem then
+              ---@cast item new-item.FileItem
+              content = tostring(item)
+              ft = item.filetype
+            elseif getmetatable(item) == CmdItem then
+              ---@cast item new-item.CmdItem
+              content = tostring(item)
+              ft = 'lua'
+            end
 
-              require('new-item.util').fill_buf { buf = bufnr, content = content }
-              vim.treesitter.start(bufnr, vim.treesitter.language.get_lang(ft))
-            end,
-          }
-        or nil,
+            util.fill_buf { buf = bufnr, content = content }
+            pcall(vim.treesitter.start, bufnr, vim.treesitter.language.get_lang(ft))
+          end,
+        },
       sorter = require('telescope.sorters').get_generic_fuzzy_sorter {},
     })
     :find()

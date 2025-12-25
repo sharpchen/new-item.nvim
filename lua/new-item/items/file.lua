@@ -11,17 +11,19 @@ local util = require('new-item.util')
 ---@field link? string | fun(): string Use content from another existing file
 ---@field get_content? fun(self: self): string
 ---@field create? fun(self: self) Method to apply the item(not factory), provided by user
----@overload fun(o: new-item.FileItem): new-item.FileItem
+---@overload fun(o: Partial<new-item.FileItem>): new-item.FileItem
 ---@diagnostic disable-next-line: assign-type-mismatch
 local FileItem = Item:new {
   edit = true,
   filetype = 'plain',
+  __tostring = function(self)
+    ---@cast self new-item.FileItem
+    return self:get_content() or self.desc or 'No Preview Available'
+  end,
 }
 
----@generic T
----@param self T
----@param o? T | table
----@return T
+---@param o Partial<new-item.FileItem>
+---@return new-item.FileItem
 function FileItem:new(o)
   o = o or {}
   ---@diagnostic disable-next-line: inject-field
@@ -35,7 +37,7 @@ function FileItem:new(o)
   return item
 end
 
-function FileItem:invoke()
+function FileItem:_create()
   (util.item_creator {
     path = function(item, ctx)
       ctx.path = item:get_path {
@@ -48,47 +50,49 @@ function FileItem:invoke()
       local content = item:get_content() or ''
       if item.nameable then content = content:gsub('%%s', ctx.name_input) end
       item.content = content
-      _ = item.before_creation and item:before_creation(ctx)
+      _ = item.before_create and item:before_create(ctx)
     end,
     creation = function(item, ctx)
       if not util.path_exists(ctx.cwd) then vim.fn.mkdir(ctx.cwd, 'p') end
       if item.edit then
-        vim.cmd.edit(ctx.path)
+        ctx.buf = util.edit(ctx.path)
         util.fill_buf { buf = 0, content = item.content }
-        if item.filetype and vim.bo.filetype ~= item.filetype then
-          vim.bo.filetype = item.filetype
+
+        if item.filetype and vim.bo[ctx.buf].filetype ~= item.filetype then
+          vim.bo[ctx.buf].filetype = item.filetype
         end
       else
         local f = io.open(ctx.path, 'w')
+
         if f then
           f:write(item.content)
           f:close()
-          vim.cmd.edit(ctx.path)
-          if item.filetype and vim.bo.filetype ~= item.filetype then
-            vim.bo.filetype = item.filetype
+          ctx.buf = util.edit(ctx.path)
+          if item.filetype and vim.bo[ctx.buf].filetype ~= item.filetype then
+            vim.bo[ctx.buf].filetype = item.filetype
           end
         else
           error('Cannot open path: ' .. ctx.path)
         end
       end
-      _ = item.after_creation and item:after_creation(ctx)
+      _ = item.after_create and item:after_create(ctx)
     end,
   })(self)
 end
 
 ---@return string?
 function FileItem:get_content()
-  local content
+  if self._content then return self._content end
   if self.link then
     local link = util.fn_or_val(self.link) --[[@as string]]
     if not util.path_exists(link) then util.warn(link .. " doesn't exist.") end
     local fd = io.open(link, 'r')
-    content = fd and fd:read('*a') or ''
+    self._content = fd and fd:read('*a') or ''
     _ = fd and fd:close()
   else
-    content = self.content
+    self._content = self.content
   end
-  return content
+  return self._content
 end
 
 return FileItem
