@@ -4,17 +4,19 @@ local root = vim
   .iter(vim.api.nvim_list_runtime_paths())
   :find(function(p) return p:match('new%-item%.nvim$') end)
 
-local gitignores = vim.fs.find(
-  function(name, _) return name:match('.+%.gitignore') end,
-  { limit = math.huge, type = 'file', path = vim.fs.joinpath(root, 'gitignore') }
-)
+local gitignores = root
+    and vim.fs.find(
+      function(name, _) return name:match('.+%.gitignore') end,
+      { limit = math.huge, type = 'file', path = vim.fs.joinpath(root, 'gitignore') }
+    )
+  or {}
 
 return vim
   .iter(gitignores)
   :map(
     function(path)
       return file {
-        iname = vim.fn.fnamemodify(path, ':t:r'),
+        id = vim.fn.fnamemodify(path, ':t:r'),
         label = vim.fs.basename(path),
         nameable = false,
         default_name = '.gitignore',

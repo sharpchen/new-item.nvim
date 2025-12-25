@@ -2,7 +2,7 @@ local file = require('new-item.items').FileItem
 local cmd = require('new-item.items').CmdItem
 return {
   cmd {
-    iname = 'tsconfig',
+    id = 'tsconfig',
     label = 'tsconfig.json',
     cmd = { 'tsc', '--init' },
     nameable = false,

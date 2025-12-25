@@ -17,6 +17,10 @@ local util = require('new-item.util')
 local CmdItem = Item:new {
   edit = true,
   append_name = false,
+  __tostring = function(self)
+    ---@cast self new-item.CmdItem
+    return vim.inspect(self.cmd)
+  end,
 }
 
 ---@generic T

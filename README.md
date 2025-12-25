@@ -1,3 +1,16 @@
+<!-- TODO: rewrite readme -->
+<!-- TODO: instruction on config.groups, config.transform_path -->
+<!-- TODO: re-structure
+  ## Quick Start
+    mention the config.init and config.groups
+    and their execution order
+  ## UserCommand
+
+  ## enable/disable group
+
+  ## Documentation
+  have a more detailed doc
+-->
 # new-item.nvim
 
 Creating items from context-aware templates.
@@ -28,7 +41,7 @@ This plugin was designed to be a **scaffold** to write your own template with co
         -- setup your custom groups and items here
         groups.mygroup = {
           items = {
-            ctors.file {...}
+            ctors.file { --[[ ... ]] }
           }
         }
       end
@@ -43,7 +56,7 @@ This plugin was designed to be a **scaffold** to write your own template with co
 An **Item** is a template knows how to create a thing, an `ItemGroup` is a dynamically conditioned container for items.
 This plugin was written in a object-oriented style, each type of item was derived from `new-item.Item`, any kind of item has the following fields:
 
-- `iname`: identifier for the item.
+- `id`: identifier for the item.
 - `suffix` and `prefix`: parts around the name of item.
     - for example, to create a typescript test file, the `suffix` can be `.test.ts`, and the final name would be `<name>.test.ts`.
 - `nameable`: indicating whether the item can have a custom name.
@@ -101,14 +114,14 @@ This plugin was written in a object-oriented style, each type of item was derive
 local file = ctors.file
 groups.javascript:append { -- assuming javascript is a existing item group
   file {
-    iname = 'javascript',
+    id = 'javascript',
     label = 'javascript file',
     content = 'console.log("%s")', -- %s will be replaced by name input
     filetype = 'javascript', -- for treesitter highlighting
     suffix = '.js' -- extension of the file
   }
   file {
-    iname = 'prettierrc',
+    id = 'prettierrc',
     label = '.prettierrc',
     edit = false, -- do not create the file directly but open a buffer with content
     link = vim.fn.expand('~/.prettierrc'), -- use content of an existing file
@@ -121,7 +134,7 @@ groups.javascript:append { -- assuming javascript is a existing item group
 groups.md:append {
   -- use the file name as top level title
   file {
-    iname = 'markdown',
+    id = 'markdown',
     label = 'Markdown file',
     filetype = 'markdown',
     suffix = '.md',
@@ -151,14 +164,14 @@ The following examples shows how it wrap `dotnet new` command as a template.
 local cmd = ctors.cmd
 groups.dotnet:append {
   cmd {
-    iname = 'buildtargets',
+    id = 'buildtargets',
     label = 'Directory.Build.targets',
     nameable = false,
     default_name = 'Directory.Build.targets',
     cmd = { 'dotnet', 'new', 'buildtargets' },
   },
   cmd {
-    iname = 'class',
+    id = 'class',
     label = 'class',
     cmd = { 'dotnet', 'new', 'class', '-lang', 'C#', '--name' } -- argument of --name is not given
     before_creation = function(item, ctx)
@@ -167,7 +180,7 @@ groups.dotnet:append {
   },
   -- or use append_name so you don't have to manually append it
   cmd {
-    iname = 'slnx',
+    id = 'slnx',
     label = 'slnx',
     cmd = { 'dotnet', 'new', 'sln', '--format', 'slnx', '--name' },
     suffix = '.slnx',
@@ -231,7 +244,7 @@ groups.dotnet:append {
 
 #### Override Item
 
-`group.<iname>:override` allows to modify the item specification with `final` and `prev` states.
+`group.<id>:override` allows to modify the item specification with `final` and `prev` states.
 `final` is the current state of the item(to be modified), `prev` is the original state of the item.
 The following example is how you can append extra operation to `before_creation` phase of item `buildprops`, from `dotnet` group.
 
@@ -259,35 +272,17 @@ end)
 
 ### Writing item group
 
-Each item must be of certain group, each group has a `cond` field to be evaluated dynamically to indicate whether its contained items should present each time your invoke the picker.
+Each item must be of certain group, each group has a `visible` field to be evaluated dynamically to indicate whether its contained items should present each time your invoke the picker.
 
-- `cond(): boolean`: indicating whether its items should present in picker.
+- `visible(): boolean`: indicating whether its items should present in picker.
 - `items`: user-defined templates.
-- `builtin_items`: pre-defined templates from the plugin or other sources.
-- `enable_builtin`: whether to include `builtin_items` in picker.
 - `append(self, items)`: append extra templates to `itemgroup.items` list.
-
-<details>
-<summary>ItemGroup definition</summary>
-
-```lua
----@class new-item.ItemGroup
----@field name? string
----@field cond? boolean | fun(): boolean
----@field items? new-item.AnyItem[]
----@field enable_builtin? boolean show builtin items
----@field private builtin_items? new-item.AnyItem[]
----@field append? fun(self, items: new-item.AnyItem[]) -- append user defined items
----@field get_items? fun(self): new-item.AnyItem[]
-```
-
-</details>
 
 For example, you may require javascript templates to present only when it found a `package.json` file on root.
 
 ```lua
 groups.javascript = {
-  cond = function()
+  visible = function()
     return vim.fs.root(vim.fn.expand('%:p:h'), 'package.json') ~= nil
   end,
   items = {--[[...]]}
@@ -303,8 +298,7 @@ That is, do not assign or alter any field to an `ItemGroup` with dot accessor, u
 
 ```lua
 group:override {
-  cond = true,
-  enable_builtin = false
+  visible = true,
 }
 ```
 

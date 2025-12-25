@@ -8,50 +8,49 @@ local M = {}
 
 ---@alias DotnetTemplate { fullname: string, alias: string, lang?: string, tag: string }
 
----@param group new-item.ItemGroup
----@param cb fun()
-function M.register_items_to(group, cb)
+---@param cb fun(items: new-item.AnyItem[])
+function M.register_items(cb)
   dn_util.get_templates('item', function(templates)
     local items = {}
 
     vim.list_extend(items, {
       cmd {
-        iname = 'buildprops',
+        id = 'buildprops',
         label = 'Directory.Build.props',
         nameable = false,
         default_name = 'Directory.Build.props',
         cmd = { 'dotnet', 'new', 'buildprops' },
       },
       cmd {
-        iname = 'buildtargets',
+        id = 'buildtargets',
         label = 'Directory.Build.targets',
         nameable = false,
         default_name = 'Directory.Build.targets',
         cmd = { 'dotnet', 'new', 'buildtargets' },
       },
       cmd {
-        iname = 'packagesprops',
+        id = 'packagesprops',
         label = 'Directory.Packages.props',
         nameable = false,
         default_name = 'Directory.Packages.props',
         cmd = { 'dotnet', 'new', 'packagesprops' },
       },
       cmd {
-        iname = 'viewstart',
+        id = 'viewstart',
         label = 'viewstart',
         nameable = false,
         default_name = '_ViewStart.cshtml',
         cmd = { 'dotnet', 'new', 'viewstart' },
       },
       file {
-        iname = 'buildrsp',
+        id = 'buildrsp',
         label = 'Directory.Build.rsp',
         nameable = false,
         default_name = 'Directory.Build.rsp',
         content = '',
       },
       cmd {
-        iname = 'viewimports',
+        id = 'viewimports',
         label = 'viewimports',
         nameable = false,
         default_name = '_ViewImports',
@@ -60,14 +59,14 @@ function M.register_items_to(group, cb)
         before_creation = dn_util.transform_by_ns,
       },
       cmd {
-        iname = 'razorcomponent',
+        id = 'razorcomponent',
         label = 'razorcomponent',
         cmd = { 'dotnet', 'new', 'razorcomponent', '-n' },
         append_name = true,
         suffix = '.razor',
       },
       cmd {
-        iname = 'view',
+        id = 'view',
         label = 'view',
         desc = 'cshtml file',
         cmd = { 'dotnet', 'new', 'view', '-n' },
@@ -75,14 +74,14 @@ function M.register_items_to(group, cb)
         suffix = '.cshtml',
       },
       cmd {
-        iname = 'webconfig',
+        id = 'webconfig',
         label = 'web.config',
         nameable = false,
         default_name = 'web.config',
         cmd = { 'dotnet', 'new', 'webconfig' },
       },
       cmd {
-        iname = 'page',
+        id = 'page',
         label = 'page',
         cmd = { 'dotnet', 'new', 'page', '-n' },
         suffix = '.cshtml',
@@ -90,14 +89,14 @@ function M.register_items_to(group, cb)
         before_creation = dn_util.transform_by_ns,
       },
       cmd {
-        iname = 'mvccontroller',
+        id = 'mvccontroller',
         label = 'mvccontroller',
         cmd = { 'dotnet', 'new', 'mvccontroller', '-n' },
         append_name = true,
         before_creation = dn_util.transform_by_ns,
       },
       cmd {
-        iname = 'apicontroller',
+        id = 'apicontroller',
         label = 'apicontroller',
         cmd = { 'dotnet', 'new', 'apicontroller', '-n' },
         suffix = '.cs',
@@ -105,7 +104,7 @@ function M.register_items_to(group, cb)
         before_creation = dn_util.transform_by_ns,
       },
       file {
-        iname = 'xamlstyler',
+        id = 'xamlstyler',
         label = 'Settings.XamlStyler',
         filetype = 'json',
         nameable = false,
@@ -166,7 +165,7 @@ function M.register_items_to(group, cb)
       table.insert(
         items,
         cmd {
-          iname = shortname,
+          id = shortname,
           label = shortname,
           cmd = vim.list_extend(
             { 'dotnet', 'new', 'sln' },
@@ -193,7 +192,7 @@ function M.register_items_to(group, cb)
         table.insert(
           items,
           cmd {
-            iname = template.alias,
+            id = template.alias,
             label = template.alias,
             desc = template.fullname,
             nameable = false,
@@ -206,7 +205,7 @@ function M.register_items_to(group, cb)
           table.insert(
             items,
             cmd {
-              iname = template.alias,
+              id = template.alias,
               label = template.alias,
               desc = template.fullname,
               cmd = { 'dotnet', 'new', template.alias, '-n' },
@@ -218,7 +217,7 @@ function M.register_items_to(group, cb)
           table.insert(
             items,
             cmd {
-              iname = template.alias,
+              id = template.alias,
               label = template.alias,
               desc = template.fullname,
               suffix = '.axaml',
@@ -241,7 +240,7 @@ function M.register_items_to(group, cb)
         table.insert(
           items,
           cmd {
-            iname = template.alias,
+            id = template.alias,
             label = template.alias,
             cmd = { 'dotnet', 'new', template.alias, '-n' },
             append_name = true,
@@ -258,7 +257,7 @@ function M.register_items_to(group, cb)
         table.insert(
           items,
           cmd {
-            iname = template.alias,
+            id = template.alias,
             label = template.alias,
             cmd = { 'dotnet', 'new', template.alias, '-n' },
             append_name = true,
@@ -271,9 +270,7 @@ function M.register_items_to(group, cb)
       ::continue::
     end
 
-    ---@diagnostic disable-next-line: invisible
-    group:override { builtin_items = items }
-    cb()
+    cb(items)
   end)
 end
 

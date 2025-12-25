@@ -26,7 +26,7 @@ function StringPreviewer:populate_preview_buf(entry_str)
   assert(item)
   if getmetatable(item) == FileItem then
     ---@cast item new-item.FileItem
-    local content = item:get_content() or item.desc or 'No Preview Available'
+    local content = tostring(item)
     local ft = item.filetype or 'plain'
     local tmpbuf = self:get_tmp_buffer()
     util.fill_buf { buf = tmpbuf, content = content }
@@ -34,7 +34,7 @@ function StringPreviewer:populate_preview_buf(entry_str)
     self:set_preview_buf(tmpbuf)
   elseif getmetatable(item) == CmdItem then
     ---@cast item new-item.CmdItem
-    local content = table.concat(item.cmd, ' ')
+    local content = tostring(item)
     local tmpbuf = self:get_tmp_buffer()
     util.fill_buf { buf = tmpbuf, content = content }
     vim.bo[tmpbuf].filetype = 'sh'

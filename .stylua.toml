@@ -4,3 +4,4 @@ quote_style = 'AutoPreferSingle'
 column_width = 90
 collapse_simple_statement = 'Always'
 call_parentheses = 'NoSingleTable'
+syntax = 'LuaJIT'

@@ -18,11 +18,11 @@ return function(items)
         local ft
         if getmetatable(item) == require('new-item.items').FileItem then
           ---@cast item new-item.FileItem
-          content = item:get_content() or item.desc or 'No Preview Available'
+          content = tostring(item)
           ft = item.filetype
         elseif getmetatable(item) == require('new-item.items').CmdItem then
           ---@cast item new-item.CmdItem
-          content = table.concat(item.cmd, ' ')
+          content = tostring(item)
           ft = 'sh'
         end
         table.insert(

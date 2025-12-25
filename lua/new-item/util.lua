@@ -185,4 +185,47 @@ function M.validate_args(item)
   end
 end
 
+---@return new-item.ItemGroup[]
+function M.enabled_groups()
+  local groups = require('new-item.groups')
+  local ret = {}
+  for _, group in pairs(groups) do
+    if require('new-item.config').config.groups[group.name] ~= false then
+      table.insert(ret, group)
+    end
+  end
+  return ret
+end
+
+---@return new-item.ItemGroup[]
+function M.loaded_groups()
+  local groups = require('new-item.groups')
+  local ret = {}
+  for _, group in pairs(groups) do
+    if group.source_loaded then table.insert(ret, group) end
+  end
+  return ret
+end
+
+function M.visible_groups()
+  local groups = require('new-item.groups')
+  local ret = {}
+  for _, group in pairs(groups) do
+    if group.source_loaded and M.fn_or_val(group.visible) then
+      table.insert(ret, group)
+    end
+  end
+  return ret
+end
+
+function M.load_groups()
+  local groups = require('new-item.groups')
+  local config = require('new-item.config').config
+
+  for _, group in pairs(groups) do
+    local enabled = config.groups[group.name] ~= false -- nil defaults to true
+    if enabled and M.fn_or_val(group.visible) then group:load_sources() end
+  end
+end
+
 return M

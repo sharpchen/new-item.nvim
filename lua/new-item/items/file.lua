@@ -11,17 +11,19 @@ local util = require('new-item.util')
 ---@field link? string | fun(): string Use content from another existing file
 ---@field get_content? fun(self: self): string
 ---@field create? fun(self: self) Method to apply the item(not factory), provided by user
----@overload fun(o: new-item.FileItem): new-item.FileItem
+---@overload fun(o: Partial<new-item.FileItem>): new-item.FileItem
 ---@diagnostic disable-next-line: assign-type-mismatch
 local FileItem = Item:new {
   edit = true,
   filetype = 'plain',
+  __tostring = function(self)
+    ---@cast self new-item.FileItem
+    return self:get_content() or self.desc or 'No Preview Available'
+  end,
 }
 
----@generic T
----@param self T
----@param o? T | table
----@return T
+---@param o Partial<new-item.FileItem>
+---@return new-item.FileItem
 function FileItem:new(o)
   o = o or {}
   ---@diagnostic disable-next-line: inject-field
