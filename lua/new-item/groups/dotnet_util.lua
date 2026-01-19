@@ -143,19 +143,13 @@ function M.sdk_version(ctx)
 end
 
 function M.completion.sdk_versions()
-  local versions
-  util
-    .async_cmd({ 'dotnet', '--list-sdks' }, function(out)
-      versions = vim
-        .iter(vim.split(out, '\n', { trimempty = true }))
-        :map(function(line)
-          -- xx.x.xxx [path/to/share/dotnet/sdk]
-          return vim.split(line, '%s+')[1]
-        end)
-        :totable()
+  return vim
+    .iter(vim.fn.systemlist { 'dotnet', '--list-sdks' })
+    :map(function(line)
+      -- xx.x.xxx [path/to/share/dotnet/sdk]
+      return vim.split(line, '%s+')[1]
     end)
-    :wait()
-  return versions or {}
+    :totable()
 end
 
 return M
