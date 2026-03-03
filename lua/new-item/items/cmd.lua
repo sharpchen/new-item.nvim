@@ -27,13 +27,13 @@ local CmdItem = Item:new {
 ---@param o? T | table
 ---@return T
 function CmdItem:new(o)
-  o = o or {}
+  o = Item:new(o or {})
   ---@diagnostic disable-next-line: inject-field
   self.__index = self
   local item = setmetatable(o, self)
 
-  if next(item.cmd) == nil or item.cmd == nil then
-    util.warn('cmd is empty for item ' .. item.label)
+  if item.cmd == nil or next(item.cmd) == nil then
+    util.warn('cmd is empty for item ' .. item.id)
   end
 
   return item

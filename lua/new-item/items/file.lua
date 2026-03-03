@@ -25,7 +25,7 @@ local FileItem = Item:new {
 ---@param o Partial<new-item.FileItem>
 ---@return new-item.FileItem
 function FileItem:new(o)
-  o = o or {}
+  o = Item:new(o or {})
   ---@diagnostic disable-next-line: inject-field
   self.__index = self
 

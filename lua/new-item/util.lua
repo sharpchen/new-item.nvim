@@ -3,6 +3,7 @@ local uv = vim.loop or vim.uv
 local M = {}
 
 ---@param args table<string, new-item.ItemCreationArgument>
+---@param ctx new-item.ItemCreationContext
 ---@return table<string, string>
 function M.prompt_for_args(args, ctx)
   local ret = {}
@@ -10,7 +11,12 @@ function M.prompt_for_args(args, ctx)
     vim.ui.input({
       prompt = name .. (spec.desc and string.format('(%s)', spec.desc) or '') .. ': ',
       default = M.fn_or_val(spec.default, ctx),
-      -- completion = spec.complete,
+      -- see also util.item_creator and CmdItem:new
+      completion = spec.complete and string.format(
+        [[customlist,v:lua.require'new-item.util'._completions.%s.%s]],
+        ctx._item_uid,
+        name
+      ),
     }, function(input)
       if not input then error(string.format('extra_args.%s cancelled', name), 0) end
       ret[name] = input
@@ -78,6 +84,7 @@ function M.error(msg) vim.notify(msg, vim.log.levels.ERROR, { title = ' New-Item
 --- WARN: use vim.text.indent instead
 --- dedent lua raw string
 ---@param s string
+---@deprecated
 function M.dedent(s)
   local lines = vim.split(s, '\n')
   local indent = lines[1]:match('^(%s*)'):len()
@@ -124,7 +131,7 @@ function M.path_exists(path) return uv.fs_stat(path) ~= nil end
 function M.item_creator(opts)
   return function(self)
     local config = require('new-item.config').config
-    local item = self
+    local item = self ---@type new-item.AnyItem
     local cwd = item.cwd()
 
     if not cwd then
@@ -143,7 +150,6 @@ function M.item_creator(opts)
 
     local name_input
     if item.nameable then
-      if item.label:match('git') then print('fooo') end
       local default_input = item.default_name and M.fn_or_val(item.default_name)
 
       ---@diagnostic disable-next-line: assign-type-mismatch
@@ -161,12 +167,18 @@ function M.item_creator(opts)
     end
 
     ---@type new-item.ItemCreationContext
-    local ctx = { name_input = name_input, cwd = cwd }
+    local ctx = {
+      name_input = name_input,
+      cwd = cwd,
+      -- identifier for retrieving completions, see: util.prompt_for_args
+      _item_uid = item._item_uid, -- this value was set by Item:invoke
+      _item_name = item.id,
+    }
 
     ---NOTE: path creation
     opts.path(item, ctx)
 
-    if item.extra_args then
+    if type(item.extra_args) == 'table' then
       local ok, args = pcall(M.prompt_for_args, item.extra_args, ctx)
       if not ok then
         M.warn(args)
@@ -202,14 +214,15 @@ end
 
 ---@param item new-item.Item
 function M.validate_args(item)
-  if item.extra_args and #item.extra_args > 0 then
-    vim.validate(
-      'before_create',
-      item.before_create,
-      'function',
-      'should have before_create when extra_args was specified'
-    )
-  end
+  -- TODO: deprecate this validation
+  -- if item.extra_args and #item.extra_args > 0 then
+  --   vim.validate(
+  --     'before_create',
+  --     item.before_create,
+  --     'function',
+  --     'should have before_create when extra_args was specified'
+  --   )
+  -- end
 end
 
 ---@return new-item.ItemGroup[]
@@ -305,5 +318,14 @@ function M.warn_if_not_exists(path)
     )
   end
 end
+
+-- storing completions for vim.ui.input
+M._completions = {}
+
+--- construct a identity for the item
+--- typically for retrieving completions of extra_args
+---@param item new-item.AnyItem
+---@return string
+function M.get_item_uid(item) return '_' .. string.format('%p', item) end
 
 return M

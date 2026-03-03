@@ -80,7 +80,7 @@ This plugin was written in a object-oriented style, each type of item was derive
 ---@field desc? string Description of the item
 ---@field invoke? fun(self: self) Activate the creation for this item
 ---@field cwd? fun(): string Returns which parent folder to create the file, default to parent of current buffer
----@field extra_args? string[] Extra argument names to be specified on creation
+---@field extra_args? table<string, new-item.ItemCreationArgument> Extra argument names to be specified on creation
 ---@field before_create? fun(self: new-item.AnyItem, ctx: new-item.ItemCreationContext)
 ---@field after_create? fun(self: new-item.AnyItem, ctx: new-item.ItemCreationContext)
 ---@field nameable? boolean True if the file item should have a custom name on creation
@@ -246,6 +246,7 @@ You can set a default value and description for the prompt.
 ---@class new-item.ItemCreationArgument
 ---@field default? string | fun(): string
 ---@field desc? string
+---@field complete? fun(lead: string, cmdline: string, position: integer): string[] see :h command-completion-customlist
 ```
 
 `item.extra_args` is available for all item types, you can access those argument values from `ctx.args` after prompt.
@@ -262,18 +263,31 @@ cmd {
     '$ITEM_SDK_VERSION', -- access the special value in uppercase
   },
   extra_args = {
-    sdk_version = { -- this name will generate a special variable
+    sdk_version = { -- this name will generate a special variable `$ITEM_SDK_VERSION`
       desc = '--sdk-version',
-      default = function()
+      default = function() -- pre-fill sdk_version as the default sdk on the system
         return vim.trim(vim.fn.system { 'dotnet', '--version' })
+      end,
+      complete = function() -- completes sdk_version by all dotnet sdk available on your machine
+        return vim
+          .iter(vim.fn.systemlist { 'dotnet', '--list-sdks' })
+          :map(function(line)
+            -- xx.x.xxx [path/to/share/dotnet/sdk]
+            return vim.split(line, '%s+')[1]
+          end)
+          :totable()
       end
     },
   },
   before_create = function(item, ctx)
-    _ = ctx.args.sdk_version -- you may access it from ctx
+    _ = ctx.args.sdk_version -- you may access its input value from ctx
   end
 }
 ```
+
+> [!IMPORTANT]
+> The name of each extra argument must be a valid lua identifier(any string of letters, digits, and underscores, not beginning with a digit) due to the limitation of the internal design and neovim api.
+> For example `sdk_version` is a good name while `sdk version` and `sdk-version` are bad.
 
 #### Override Item
 

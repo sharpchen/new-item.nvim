@@ -6,8 +6,7 @@ local util = require('new-item.util')
 ---@class new-item.ItemCreationArgument
 ---@field default? string | fun(): string
 ---@field desc? string
---- FIXME: vim.ui.input currently does not support completion literal
----@field complete? string | fun(lead: string, cmdline: string, position: integer): string[] see :h command-completion-custom
+---@field complete? fun(lead: string, cmdline: string, position: integer): string[] see :h command-completion-custom
 
 ---@class new-item.ItemCreationContext
 ---@field name_input? string name specified from vim.ui.input
@@ -15,13 +14,15 @@ local util = require('new-item.util')
 ---@field path? string path of the item to be created
 ---@field cwd? string the folder where the item would be created at
 ---@field buf? integer the buffer number created for the item
+---internal _item_uid string
+---internal _item_id string
 
 ---@class new-item.Item
 ---@field label string Name displayed as entry in picker
 ---@field id string Identifier of the item
 ---@field desc? string Description of the item
 ---@field cwd? fun(): string? Returns which folder to create the file, default to parent of current buffer
----@field extra_args? table<string, new-item.ItemCreationArgument> Extra argument names to be specified on creation
+---@field extra_args table<string, new-item.ItemCreationArgument> Extra arguments to be specified on creation
 ---@field before_create? fun(self: new-item.AnyItem, ctx: new-item.ItemCreationContext)
 ---@field after_create? fun(self: new-item.AnyItem, ctx: new-item.ItemCreationContext)
 ---@field nameable? boolean True if the file item should have a custom name on creation, defaults to true
@@ -46,21 +47,38 @@ local Item = {
   _on_creation_failed = function(self) end,
 }
 
----@param arg_or_fn new-item.AnyItem
+-- WARN: This alters original item
 ---@return new-item.AnyItem
 ---@overload fun(self: new-item.AnyItem, fn: fun(final: new-item.AnyItem, prev: new-item.AnyItem))
+---@overload fun(arg_or_fn: new-item.AnyItem)
 function Item:override(arg_or_fn)
+  -- BAD:  groups.foo.bar = foo.bar:override(...)
+  -- GOOD: groups.foo.bar:override(...)
+  local final = self -- we alter the original item instead of creating new one
+  local final_id = util.get_item_uid(final)
+  setmetatable(final, getmetatable(self))
+
   if type(arg_or_fn) == 'function' then
-    local copy = vim.deepcopy(self)
-    setmetatable(copy, getmetatable(self))
-    arg_or_fn(self, copy)
-    util.validate_args(self)
-    util.validate_name(self)
+    local prev = vim.deepcopy(final)
+    setmetatable(prev, getmetatable(final))
+
+    arg_or_fn(final, prev)
+
+    util.validate_args(final)
+    util.validate_name(final)
   else
-    self = vim.tbl_deep_extend('force', self, arg_or_fn)
+    final = vim.tbl_deep_extend('force', final, arg_or_fn)
   end
 
-  return self
+  -- register new set of completions
+  util._completions[final_id] = vim
+    .iter(pairs(final.extra_args))
+    :fold({}, function(sum, arg_name, spec)
+      sum[arg_name] = spec.complete
+      return sum
+    end)
+
+  return final
 end
 
 ---construct a path by contextual inputs
@@ -87,8 +105,22 @@ end
 ---@param o? T | table
 ---@return T
 function Item:new(o)
+  o = o or {}
+  o.extra_args = o.extra_args or {}
   self.__index = self
-  return setmetatable(o or {}, self)
+
+  -- get unique identifier for the item
+  -- add leading _ so that we can retrieve it in :h v:lua-call
+  -- see: util.prompt_for_args
+  local uid = util.get_item_uid(o)
+  for arg_name, spec in pairs(o.extra_args) do
+    if spec.complete then
+      util._completions[uid] = util._completions[uid] or {}
+      util._completions[uid][arg_name] = spec.complete
+    end
+  end
+
+  return setmetatable(o, self)
 end
 
 function Item:invoke()
@@ -96,7 +128,10 @@ function Item:invoke()
     -- NOTE: __test performs nothing
     -- because I don't want to affect file system on tests using invoke()
   else
-    local ok, err = pcall(self._create, vim.deepcopy(self))
+    local copy = vim.deepcopy(self)
+    -- we had to pass original uid here because its a copy
+    copy._item_uid = util.get_item_uid(self)
+    local ok, err = pcall(self._create, copy)
     if not ok then
       util.warn(string.format('(%s)Item creation failed', self.id))
       self:_on_creation_failed()
