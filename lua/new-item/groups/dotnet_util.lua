@@ -142,6 +142,7 @@ function M.sdk_version(ctx)
   return version
 end
 
+---@return string[]
 function M.completion.sdk_versions()
   return vim
     .iter(vim.fn.systemlist { 'dotnet', '--list-sdks' })

@@ -60,11 +60,30 @@ function M.register_items(add_items)
                   parsed.alias,
                   '--sdk-version',
                   '$ITEM_SDK_VERSION',
+                  '--roll-forward',
+                  '$ITEM_ROLL_FORWARD_POLICY',
                 },
                 extra_args = {
-                  sdk_version = {
+                  SDK_VERSION = {
                     desc = '--sdk-version',
                     default = dn_util.sdk_version,
+                    complete = dn_util.completion.sdk_versions,
+                  },
+                  ROLL_FORWARD_POLICY = {
+                    desc = '--roll-forward',
+                    complete = function()
+                      return {
+                        'patch',
+                        'feature',
+                        'minor',
+                        'major',
+                        'latestPatch',
+                        'latestFeature',
+                        'latestMinor',
+                        'latestMajor',
+                        'disable',
+                      }
+                    end,
                   },
                 },
               }
@@ -216,62 +235,6 @@ function M.register_items(add_items)
             cmd = { 'dotnet', 'new', 'apicontroller', '-n', '$ITEM_NAME' },
             suffix = '.cs',
             before_create = dn_util.transform_by_ns,
-          },
-          file {
-            id = 'xamlstyler',
-            label = 'Settings.XamlStyler',
-            filetype = 'json',
-            nameable = false,
-            default_name = 'Settings.XamlStyler',
-            content = vim.text.indent(
-              0,
-              [[
-        {
-            "IndentWithTabs": false,
-            "IndentSize": 4,
-            "AttributesTolerance": 2,
-            "KeepFirstAttributeOnSameLine": false,
-            "MaxAttributeCharactersPerLine": 0,
-            "MaxAttributesPerLine": 1,
-            "NewlineExemptionElements": "RadialGradientBrush, GradientStop, LinearGradientBrush, ScaleTransform, SkewTransform, RotateTransform, TranslateTransform, Trigger, Condition, Setter",
-            "SeparateByGroups": false,
-            "AttributeIndentation": 0,
-            "AttributeIndentationStyle": 1,
-            "RemoveDesignTimeReferences":  false,
-            "IgnoreDesignTimeReferencePrefix": false,
-            "EnableAttributeReordering": true,
-            "AttributeOrderingRuleGroups": [
-                "x:Class",
-                "xmlns, xmlns:x",
-                "xmlns:*",
-                "x:Key, Key, x:Name, Name, x:Uid, Uid, Title",
-                "Grid.Row, Grid.RowSpan, Grid.Column, Grid.ColumnSpan, Canvas.Left, Canvas.Top, Canvas.Right, Canvas.Bottom",
-                "Width, Height, MinWidth, MinHeight, MaxWidth, MaxHeight",
-                "Margin, Padding, HorizontalAlignment, VerticalAlignment, HorizontalContentAlignment, VerticalContentAlignment, Panel.ZIndex",
-                "*:*, *",
-                "PageSource, PageIndex, Offset, Color, TargetName, Property, Value, StartPoint, EndPoint",
-                "mc:Ignorable, d:IsDataSource, d:LayoutOverrides, d:IsStaticText",
-                "Storyboard.*, From, To, Duration"
-            ],
-            "FirstLineAttributes": "",
-            "OrderAttributesByName": true,
-            "PutEndingBracketOnNewLine": false,
-            "RemoveEndingTagOfEmptyElement": true,
-            "SpaceBeforeClosingSlash": true,
-            "RootElementLineBreakRule": 0,
-            "ReorderVSM": 2,
-            "ReorderGridChildren": false,
-            "ReorderCanvasChildren": false,
-            "ReorderSetters": 0,
-            "FormatMarkupExtension": true,
-            "NoNewLineMarkupExtensions": "x:Bind, Binding",
-            "ThicknessSeparator": 2,
-            "ThicknessAttributes": "Margin, Padding, BorderThickness, ThumbnailClipMargin",
-            "FormatOnSave": true,
-            "CommentPadding": 2,
-        }
-        ]]
-            ),
           },
         }
       end,
