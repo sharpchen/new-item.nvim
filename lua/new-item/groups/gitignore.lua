@@ -1,6 +1,6 @@
 local file = require('new-item.items').FileItem
 
----@param plug_name string basename of the github/gitignore repo being installed on stdpath
+---@param plug_name string? Basename of the github/gitignore repo being installed on stdpath
 ---@return new-item.FileItem[]
 return function(plug_name)
   plug_name = plug_name or 'gitignore'
