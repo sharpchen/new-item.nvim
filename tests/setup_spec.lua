@@ -18,13 +18,13 @@ describe('setup', function()
   end)
 
   it('config.groups', function()
-    assert(
+    assert.is_true(
       vim
         .iter(util.enabled_groups())
-        :all(function(group) return group.name and group.name ~= 'gitignore' end)
+        :all(function(group) return group.name ~= 'gitignore' end)
     )
+
     assert.is_false(groups.dotnet.visible)
-    assert.are_equal(ItemGroup, getmetatable(groups.dotnet._backing_group))
   end)
 
   it('config.init', function() end)

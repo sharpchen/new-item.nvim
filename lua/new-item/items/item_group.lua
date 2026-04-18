@@ -12,7 +12,6 @@
 ---@field sources new-item.ItemSource[]
 ---@field private _source_items table<string, new-item.AnyItem[]>
 ---@field private _on_loaded_events (fun(self: new-item.ItemGroup))[]
----@field private _backing_group? new-item.ItemGroup
 ---@field private _excluded_sources string[]
 ---@field [string] new-item.AnyItem
 local ItemGroup = {
@@ -29,6 +28,12 @@ function ItemGroup:load_sources()
   -- self._source_items = {}
 
   for _, source_spec in ipairs(self.sources or {}) do
+    -- defer validation on here since there's different ways to add sources
+    -- including table merging and ItemSource:append_source
+    assert(
+      source_spec.name,
+      string.format('Certain ItemSource.name is unspecified for group `%s`', self.name)
+    )
     local source = source_spec[1]
     local items
     local this = self
@@ -94,9 +99,12 @@ end
 
 ---@param opts any
 function ItemGroup:override(opts)
-  -- WARN: ItemGroup is now a proxy table
-  for opt, value in pairs(opts) do
-    self._backing_group[opt] = value
+  for k, v in pairs(opts) do
+    if type(v) == 'table' then
+      self[k] = vim.tbl_deep_extend('force', self[k] or {}, v)
+    else
+      self[k] = v
+    end
   end
 end
 
@@ -189,21 +197,7 @@ function ItemGroup:new(group)
   end
 
   self.__index = self
-  setmetatable(group, self)
-
-  local wrapper = {
-    _backing_group = group,
-  } -- NOTE: proxy table
-  return setmetatable(wrapper, {
-    __index = function(_, key)
-      ---@cast group new-item.ItemGroup
-      if group[key] then return group[key] end
-      for item in group:iter_items() do
-        -- group.<id>:override({...})
-        if item.id == key then return item end
-      end
-    end,
-  })
+  return setmetatable(group, self)
 end
 
 return ItemGroup

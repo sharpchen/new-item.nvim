@@ -12,11 +12,10 @@ function M.setup(conf)
   require('new-item.config').config = newconf
 
   for name, group_spec in pairs(newconf.groups or {}) do
+    -- group_spec can be table or false to disable
     if type(group_spec) == 'table' then
       if groups[name] then
-        local meta = getmetatable(groups[name])
-        local merged = vim.tbl_deep_extend('force', groups[name], group_spec)
-        groups[name] = setmetatable(merged, meta)
+        groups[name]:override(group_spec)
       else
         groups[name] = group_spec
       end
