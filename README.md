@@ -2,9 +2,7 @@
 
 Creating items from context-aware templates.
 
-![new-item](https://github.com/user-attachments/assets/ed260dea-a3b9-4063-a540-66b9cf7b0f68)
-
-## Why this plugin
+https://github.com/user-attachments/assets/48251865-51ec-4647-a7c6-df8900b13baa
 
 The idea came from the common feature of modern IDEs that, allowing to create a file based on template and context, things like **Add new class** in the menu while you right-click in the explorer.
 This plugin was designed to be a **scaffold** to write your own template with context-aware capabilities.
