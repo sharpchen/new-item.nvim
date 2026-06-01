@@ -25,7 +25,6 @@ This plugin was designed to be a **scaffold** to write your own template with co
 {
   'sharpchen/new-item.nvim',
   event = 'VeryLazy',
-  submodules = true,
   config = function()
     require('new-item').setup {
       groups = {
