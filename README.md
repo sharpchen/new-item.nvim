@@ -150,7 +150,8 @@ local examplefile_by_command = cmd {
   id = 'example',
   label = 'Example file',
   suffix = '.txt',
-  cmd = { 'touch', '$ITEM_NAME.txt' },
+  exe = 'touch',
+  args = { '$ITEM_NAME.txt' },
   after_create = function(_, ctx)
     vim.fn.setbufline(ctx.buf, 1, { 'This is an example' })
   end

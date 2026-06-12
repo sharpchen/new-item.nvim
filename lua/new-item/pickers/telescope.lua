@@ -1,9 +1,9 @@
-local util = require('new-item.util')
+local U = require('new-item.util')
 local FileItem = require('new-item.items').FileItem
 local CmdItem = require('new-item.items').CmdItem
 
 if not pcall(require, 'telescope') then
-  util.error(
+  U.error(
     'telescope.nvim is not installed, please consider either installing it or use another picker'
   )
   return
@@ -54,7 +54,7 @@ return function(items)
               ft = 'lua'
             end
 
-            util.fill_buf { buf = bufnr, content = content }
+            U.fill_buf { buf = bufnr, content = content }
             pcall(vim.treesitter.start, bufnr, vim.treesitter.language.get_lang(ft))
           end,
         },

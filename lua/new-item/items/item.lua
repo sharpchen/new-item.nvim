@@ -1,7 +1,7 @@
 -- TODO: implement item:dryrun()
 
 ---@diagnostic disable: invisible
-local util = require('new-item.util')
+local U = require('new-item.util')
 
 ---@class new-item.ItemCreationArgument
 ---@field default? string | fun(): string
@@ -55,7 +55,7 @@ function Item:override(arg_or_fn)
   -- BAD:  groups.foo.bar = foo.bar:override(...)
   -- GOOD: groups.foo.bar:override(...)
   local final = self -- we alter the original item instead of creating new one
-  local final_id = util.get_item_uid(final)
+  local final_id = U.get_item_uid(final)
   setmetatable(final, getmetatable(self))
 
   if type(arg_or_fn) == 'function' then
@@ -64,14 +64,14 @@ function Item:override(arg_or_fn)
 
     arg_or_fn(final, prev)
 
-    util.validate_args(final)
-    util.validate_name(final)
+    U.validate_args(final)
+    U.validate_name(final)
   else
     final = vim.tbl_deep_extend('force', final, arg_or_fn)
   end
 
   -- register new set of completions
-  util._completions[final_id] = vim
+  U._completions[final_id] = vim
     .iter(pairs(final.extra_args))
     :fold({}, function(sum, arg_name, spec)
       sum[arg_name] = spec.complete
@@ -89,7 +89,7 @@ function Item:get_path(o)
     o.cwd,
     (
       (self.prefix or '')
-      .. (o.name_input or util.fn_or_val(self.default_name) or '')
+      .. (o.name_input or U.fn_or_val(self.default_name) or '')
       .. (self.suffix or '')
     )
   )
@@ -112,11 +112,11 @@ function Item:new(o)
   -- get unique identifier for the item
   -- add leading _ so that we can retrieve it in :h v:lua-call
   -- see: util.prompt_for_args
-  local uid = util.get_item_uid(o)
+  local uid = U.get_item_uid(o)
   for arg_name, spec in pairs(o.extra_args) do
     if spec.complete then
-      util._completions[uid] = util._completions[uid] or {}
-      util._completions[uid][arg_name] = spec.complete
+      U._completions[uid] = U._completions[uid] or {}
+      U._completions[uid][arg_name] = spec.complete
     end
   end
 
@@ -130,12 +130,12 @@ function Item:invoke()
   else
     local copy = vim.deepcopy(self)
     -- we had to pass original uid here because its a copy
-    copy._item_uid = util.get_item_uid(self)
+    copy._item_uid = U.get_item_uid(self)
     local ok, err = pcall(self._create, copy)
     if not ok then
-      util.warn(string.format('(%s)Item creation failed', self.id))
+      U.warn(string.format('(%s)Item creation failed', self.id))
       self:_on_creation_failed()
-      util.error(tostring(err))
+      U.error(tostring(err))
     end
   end
 end

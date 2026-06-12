@@ -1,10 +1,10 @@
-local util = require('new-item.util')
+local U = require('new-item.util')
 local FileItem = require('new-item.items').FileItem
 local CmdItem = require('new-item.items').CmdItem
 local config = require('new-item.config').config
 
 if not pcall(require, 'snacks.picker') then
-  util.error(
+  U.error(
     'snacks.nvim is not installed or its picker module is not enabled, please consider either installing/enabling it or use another picker'
   )
   return

@@ -36,7 +36,7 @@ M.config = {
 
 ---@return fun(items: new-item.AnyItem[])
 function M.get_picker()
-  local util = require('new-item.util')
+  local U = require('new-item.util')
   local picker
 
   if type(M.config.picker) == 'function' then
@@ -55,7 +55,7 @@ function M.get_picker()
       }, function(item, idx) _ = item and item:invoke() end)
     end
   else
-    util.error('picker was not set.')
+    U.error('picker was not set.')
   end
 
   if type(picker) == 'boolean' or picker == nil then

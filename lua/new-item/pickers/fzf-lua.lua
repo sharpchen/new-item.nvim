@@ -1,7 +1,7 @@
-local util = require('new-item.util')
+local U = require('new-item.util')
 
 if not pcall(require, 'fzf-lua') then
-  util.warn(
+  U.warn(
     'fzf-lua is not installed, please consider either installing it or use another picker'
   )
   return
@@ -31,14 +31,14 @@ function StringPreviewer:populate_preview_buf(entry_str)
     local content = tostring(item)
     local ft = item.filetype or 'plain'
     local tmpbuf = self:get_tmp_buffer()
-    util.fill_buf { buf = tmpbuf, content = content }
+    U.fill_buf { buf = tmpbuf, content = content }
     vim.bo[tmpbuf].filetype = ft
     self:set_preview_buf(tmpbuf)
   elseif getmetatable(item) == CmdItem then
     ---@cast item new-item.CmdItem
     local content = tostring(item)
     local tmpbuf = self:get_tmp_buffer()
-    util.fill_buf { buf = tmpbuf, content = content }
+    U.fill_buf { buf = tmpbuf, content = content }
     vim.bo[tmpbuf].filetype = 'lua'
     self:set_preview_buf(tmpbuf)
   end

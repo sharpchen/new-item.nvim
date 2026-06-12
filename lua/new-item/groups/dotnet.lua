@@ -1,21 +1,24 @@
-local util = require('new-item.util')
+local U = require('new-item.util')
 local file = require('new-item.items').FileItem
 local config = require('new-item.config').config
 local cmd = require('new-item.items').CmdItem
-local dn_util = require('new-item.groups.dotnet_util')
+local DU = require('new-item.groups.dotnet_util')
 
 local M = {}
 
+-- TODO: separate dotnet items as plugin to better manage for different dotnet versions
+-- this should require new-item.nvim itself to be stable.
+
 function M.register_items(add_items)
-  util.async_cmd({ 'dotnet', '--version' }, function(version)
+  U.async_cmd({ 'dotnet', '--version' }, function(version)
     local dn_ge_7 = vim.version.ge(version, '7.0.0')
     local dn_ge_10 = vim.version.ge(version, '10.0.0')
     local has_slnx_support = vim.version.ge(version, '9.0.200') -- see https://devblogs.microsoft.com/dotnet/introducing-slnx-support-dotnet-cli/
-    util.parse_items {
+    U.parse_items {
       cmd = { 'dotnet', 'new', dn_ge_7 and 'list' or '--list', '--type=item' }, -- '--ignore-constraints'
       cwd = vim.uv.cwd(),
-      parse = function(stdout) return dn_util.parse_template(stdout) end,
-      switch = util.make_switch {
+      parse = function(stdout) return DU.parse_template(stdout) end,
+      switch = U.make_switch {
         {
           cond = function(parsed) return parsed.alias:match('^avalonia') end,
           action = function(parsed)
@@ -24,7 +27,8 @@ function M.register_items(add_items)
                 id = parsed.alias,
                 label = parsed.alias,
                 desc = parsed.fullname,
-                cmd = { 'dotnet', 'new', parsed.alias, '-n', '$ITEM_NAME' },
+                exe = 'dotnet',
+                args = { 'new', parsed.alias, '-n', '$ITEM_NAME' },
                 suffix = '.axaml',
               }
             else
@@ -33,11 +37,12 @@ function M.register_items(add_items)
                 label = parsed.alias,
                 desc = parsed.fullname,
                 suffix = '.axaml',
-                cmd = { 'dotnet', 'new', parsed.alias, '-n', '$ITEM_NAME' },
+                exe = 'dotnet',
+                args = { 'new', parsed.alias, '-n', '$ITEM_NAME' },
                 before_create = function(item, ctx)
                   ---@cast item new-item.CmdItem
-                  dn_util.transform_by_lang { append_ext = false }(item, ctx)
-                  dn_util.transform_by_ns(item, ctx)
+                  DU.transform_by_lang { append_ext = false }(item, ctx)
+                  DU.transform_by_ns(item, ctx)
                 end,
               }
             end
@@ -54,8 +59,8 @@ function M.register_items(add_items)
                 label = parsed.alias,
                 nameable = false,
                 default_name = parsed.alias,
-                cmd = {
-                  'dotnet',
+                exe = 'dotnet',
+                args = {
                   'new',
                   parsed.alias,
                   '--sdk-version',
@@ -66,8 +71,8 @@ function M.register_items(add_items)
                 extra_args = {
                   SDK_VERSION = {
                     desc = '--sdk-version',
-                    default = dn_util.sdk_version,
-                    complete = dn_util.completion.sdk_versions,
+                    default = DU.sdk_version,
+                    complete = DU.completion.sdk_versions,
                   },
                   ROLL_FORWARD_POLICY = {
                     desc = '--roll-forward',
@@ -93,7 +98,8 @@ function M.register_items(add_items)
               label = parsed.alias,
               nameable = false,
               default_name = parsed.alias,
-              cmd = { 'dotnet', 'new', parsed.alias },
+              exe = 'dotnet',
+              args = { 'new', parsed.alias },
             }
           end,
         },
@@ -108,7 +114,8 @@ function M.register_items(add_items)
               label = label,
               nameable = false,
               default_name = label,
-              cmd = { 'dotnet', 'new', parsed.alias },
+              exe = 'dotnet',
+              args = { 'new', parsed.alias },
             }
           end,
         },
@@ -118,8 +125,9 @@ function M.register_items(add_items)
             return cmd {
               id = parsed.alias,
               label = parsed.alias,
-              cmd = { 'dotnet', 'new', parsed.alias, '-n', '$ITEM_NAME' },
-              before_create = dn_util.transform_by_lang { append_ext = true },
+              exe = 'dotnet',
+              args = { 'new', parsed.alias, '-n', '$ITEM_NAME' },
+              before_create = DU.transform_by_lang { append_ext = true },
             }
           end,
         },
@@ -133,7 +141,8 @@ function M.register_items(add_items)
             cmd {
               id = 'slnx',
               label = 'slnx',
-              cmd = { 'dotnet', 'new', 'sln', '--format', 'slnx', '-n', '$ITEM_NAME' },
+              exe = 'dotnet',
+              args = { 'new', 'sln', '--format', 'slnx', '-n', '$ITEM_NAME' },
               suffix = '.slnx',
               default_name = function() return vim.fs.basename(vim.fn.getcwd()) end,
             },
@@ -145,8 +154,9 @@ function M.register_items(add_items)
           cmd {
             id = 'sln',
             label = 'sln',
-            cmd = vim.list_extend(
-              { 'dotnet', 'new', 'sln' },
+            exe = 'dotnet',
+            args = vim.list_extend(
+              { 'new', 'sln' },
               has_slnx_support and { '--format', 'sln', '-n', '$ITEM_NAME' } -- defaults to slnx since .NET10, so explicit format is needed
                 or { '-n', '$ITEM_NAME' }
             ),
@@ -160,7 +170,8 @@ function M.register_items(add_items)
           cmd {
             id = 'tool-manifest',
             label = 'dotnet-tools.json',
-            cmd = { 'dotnet', 'new', 'tool-manifest' },
+            exe = 'dotnet',
+            args = { 'new', 'tool-manifest' },
             nameable = false,
             default_name = dn_ge_10 and 'dotnet-tools.json'
               or vim.fs.joinpath('.config', 'dotnet-tools.json'),
@@ -168,9 +179,10 @@ function M.register_items(add_items)
           cmd {
             id = 'mstest-class',
             label = 'mstest-class',
-            cmd = { 'dotnet', 'new', 'mstest-class', '-n', '$ITEM_NAME' },
+            exe = 'dotnet',
+            args = { 'new', 'mstest-class', '-n', '$ITEM_NAME' },
             before_create = function(item, ctx)
-              dn_util.transform_by_lang { append_ext = true }(item, ctx)
+              DU.transform_by_lang { append_ext = true }(item, ctx)
             end,
           },
           cmd {
@@ -178,7 +190,8 @@ function M.register_items(add_items)
             label = 'viewstart',
             nameable = false,
             default_name = '_ViewStart.cshtml',
-            cmd = { 'dotnet', 'new', 'viewstart' },
+            exe = 'dotnet',
+            args = { 'new', 'viewstart' },
           },
           file {
             id = 'buildrsp',
@@ -192,49 +205,56 @@ function M.register_items(add_items)
             label = 'viewimports',
             nameable = false,
             default_name = '_ViewImports',
-            cmd = { 'dotnet', 'new', 'viewimports' },
+            exe = 'dotnet',
+            args = { 'new', 'viewimports' },
             suffix = '.cshtml',
-            before_create = dn_util.transform_by_ns,
+            before_create = DU.transform_by_ns,
           },
           cmd {
             id = 'razorcomponent',
             label = 'razorcomponent',
-            cmd = { 'dotnet', 'new', 'razorcomponent', '-n', '$ITEM_NAME' },
+            exe = 'dotnet',
+            args = { 'new', 'razorcomponent', '-n', '$ITEM_NAME' },
             suffix = '.razor',
           },
           cmd {
             id = 'view',
             label = 'view',
             desc = 'cshtml file',
-            cmd = { 'dotnet', 'new', 'view', '-n', '$ITEM_NAME' },
+            exe = 'dotnet',
+            args = { 'new', 'view', '-n', '$ITEM_NAME' },
             suffix = '.cshtml',
           },
           cmd {
             id = 'webconfig',
             label = 'web.config',
-            cmd = { 'dotnet', 'new', 'webconfig' },
+            exe = 'dotnet',
+            args = { 'new', 'webconfig' },
             nameable = false,
             default_name = 'web.config',
           },
           cmd {
             id = 'page',
             label = 'page',
-            cmd = { 'dotnet', 'new', 'page', '-n', '$ITEM_NAME' },
+            exe = 'dotnet',
+            args = { 'new', 'page', '-n', '$ITEM_NAME' },
             suffix = '.cshtml',
-            before_create = dn_util.transform_by_ns,
+            before_create = DU.transform_by_ns,
           },
           cmd {
             id = 'mvccontroller',
             label = 'mvccontroller',
-            cmd = { 'dotnet', 'new', 'mvccontroller', '-n', '$ITEM_NAME' },
-            before_create = dn_util.transform_by_ns,
+            exe = 'dotnet',
+            args = { 'new', 'mvccontroller', '-n', '$ITEM_NAME' },
+            before_create = DU.transform_by_ns,
           },
           cmd {
             id = 'apicontroller',
             label = 'apicontroller',
-            cmd = { 'dotnet', 'new', 'apicontroller', '-n', '$ITEM_NAME' },
+            exe = 'dotnet',
+            args = { 'new', 'apicontroller', '-n', '$ITEM_NAME' },
             suffix = '.cs',
-            before_create = dn_util.transform_by_ns,
+            before_create = DU.transform_by_ns,
           },
         }
       end,

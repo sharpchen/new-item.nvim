@@ -1,8 +1,8 @@
-local util = require('new-item.util')
+local U = require('new-item.util')
 
 describe('util', function()
   it('make_switch', function()
-    local switch = util.make_switch {
+    local switch = U.make_switch {
       {
         cond = function(input) return input == 2 end,
         action = function(input) return input * input end,

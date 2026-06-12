@@ -1,5 +1,5 @@
 local Item = require('new-item.items.item')
-local util = require('new-item.util')
+local U = require('new-item.util')
 
 ---@class (exact) new-item.FileItem : new-item.Item
 ---@field filetype? string
@@ -31,14 +31,14 @@ function FileItem:new(o)
 
   local item = setmetatable(o, self)
 
-  util.validate_name(item)
-  util.validate_args(item)
+  U.validate_name(item)
+  U.validate_args(item)
 
   return item
 end
 
 function FileItem:_create()
-  (util.item_creator {
+  (U.item_creator {
     path = function(item, ctx)
       ctx.path = item:get_path {
         cwd = ctx.cwd,
@@ -53,10 +53,10 @@ function FileItem:_create()
       _ = item.before_create and item:before_create(ctx)
     end,
     creation = function(item, ctx)
-      if not util.path_exists(ctx.cwd) then vim.fn.mkdir(ctx.cwd, 'p') end
+      if not U.path_exists(ctx.cwd) then vim.fn.mkdir(ctx.cwd, 'p') end
       if item.edit then
-        ctx.buf = util.edit(ctx.path)
-        util.fill_buf { buf = 0, content = item.content }
+        ctx.buf = U.edit(ctx.path)
+        U.fill_buf { buf = 0, content = item.content }
 
         if item.filetype and vim.bo[ctx.buf].filetype ~= item.filetype then
           vim.bo[ctx.buf].filetype = item.filetype
@@ -67,7 +67,7 @@ function FileItem:_create()
         if f then
           f:write(item.content)
           f:close()
-          ctx.buf = util.edit(ctx.path)
+          ctx.buf = U.edit(ctx.path)
           if item.filetype and vim.bo[ctx.buf].filetype ~= item.filetype then
             vim.bo[ctx.buf].filetype = item.filetype
           end
@@ -84,8 +84,8 @@ end
 function FileItem:get_content()
   if self._content then return self._content end
   if self.link then
-    local link = util.fn_or_val(self.link) --[[@as string]]
-    if not util.path_exists(link) then util.warn(link .. " doesn't exist.") end
+    local link = U.fn_or_val(self.link) --[[@as string]]
+    if not U.path_exists(link) then U.warn(link .. " doesn't exist.") end
     local fd = io.open(link, 'r')
     self._content = fd and fd:read('*a') or ''
     _ = fd and fd:close()

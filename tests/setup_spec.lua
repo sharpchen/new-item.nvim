@@ -1,5 +1,5 @@
 local file = require('new-item.items').file
-local util = require('new-item.util')
+local U = require('new-item.util')
 local groups = require('new-item.groups')
 local ItemGroup = require('new-item.items').ItemGroup
 
@@ -20,7 +20,7 @@ describe('setup', function()
   it('config.groups', function()
     assert.is_true(
       vim
-        .iter(util.enabled_groups())
+        .iter(U.enabled_groups())
         :all(function(group) return group.name ~= 'gitignore' end)
     )
 

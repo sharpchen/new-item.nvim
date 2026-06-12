@@ -1,4 +1,4 @@
-local util = require('new-item.util')
+local U = require('new-item.util')
 local M = {
   msbuild = {},
   completion = {},
@@ -21,22 +21,20 @@ end
 ---@overload fun(project: string, prop: string[]): table<string, string>
 function M.msbuild.get_property(project, prop)
   local result
-  util
-    .async_cmd(
-      {
-        'dotnet',
-        'msbuild',
-        project,
-        '-getProperty:'
-          .. (
-            type(prop) == 'string' and prop or table.concat(prop --[[@as string[] ]], ',')
-          ),
-      },
-      function(out)
-        result = type(prop) == 'string' and out or vim.json.decode(out).Properties
-      end
-    )
-    :wait()
+  U.async_cmd(
+    {
+      'dotnet',
+      'msbuild',
+      project,
+      '-getProperty:'
+        .. (
+          type(prop) == 'string' and prop or table.concat(prop --[[@as string[] ]], ',')
+        ),
+    },
+    function(out)
+      result = type(prop) == 'string' and out or vim.json.decode(out).Properties
+    end
+  ):wait()
   return result
 end
 
@@ -84,7 +82,7 @@ end
 ---@param opts { proj: string, root: string, cwd: string }
 ---@return string namespace folder structure based namespace if opts.structure is specified, else RootNamespace of the project.
 function M.get_namespace(opts)
-  vim.validate('project file', opts.proj, function(p) return util.path_exists(p) end)
+  vim.validate('project file', opts.proj, function(p) return U.path_exists(p) end)
   local root_ns = M.msbuild.get_property(opts.proj, 'RootNamespace')
   local rel = vim.fs.relpath(opts.root, opts.cwd)
   if rel and rel ~= '.' then return root_ns .. '.' .. rel:gsub('/', '.') end
@@ -95,7 +93,7 @@ end
 ---@param ctx new-item.ItemCreationContext
 function M.transform_by_ns(item, ctx)
   local proj = M.get_nearest_proj(ctx.cwd)
-  item.cmd = vim.list_extend(item.cmd, {
+  item.args = vim.list_extend(item.args, {
     '--namespace',
     M.get_namespace {
       proj = proj or '',
@@ -116,17 +114,17 @@ function M.transform_by_lang(opts)
       local ext
       if proj:match('%.csproj$') then
         ext = '.cs'
-        item.cmd = vim.list_extend(item.cmd, { '-lang', 'C#' })
+        item.args = vim.list_extend(item.args, { '-lang', 'C#' })
       elseif proj:match('%.vbproj$') then
         ext = '.vb'
-        item.cmd = vim.list_extend(item.cmd, { '-lang', 'VB' })
+        item.args = vim.list_extend(item.args, { '-lang', 'VB' })
       elseif proj:match('%.fsproj$') then
         ext = '.fs'
-        item.cmd = vim.list_extend(item.cmd, { '-lang', 'F#' })
+        item.args = vim.list_extend(item.args, { '-lang', 'F#' })
       end
       if opts.append_ext then ctx.path = ctx.path .. ext end
     else
-      util.warn('project file not found.')
+      U.warn('project file not found.')
     end
   end
 end
@@ -136,8 +134,11 @@ end
 ---@return string
 function M.sdk_version(ctx)
   local version
-  util
-    .async_cmd({ 'dotnet', '--version' }, function(out) version = out end, { cwd = ctx.cwd })
+  U.async_cmd(
+    { 'dotnet', '--version' },
+    function(out) version = out end,
+    { cwd = ctx.cwd }
+  )
     :wait()
   return version
 end

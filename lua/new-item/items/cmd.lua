@@ -1,24 +1,19 @@
 local Item = require('new-item.items.item')
-local util = require('new-item.util')
-
--- NOTE: if someday you like to allow CmdItem.cmd as a function
--- create a ctx field for it, and change the item.cmd references in pickers to nil when cmd a function
+local U = require('new-item.util')
 
 ---@class (exact) new-item.CmdItem : new-item.Item
----@field cmd string[] shell command
+---@field exe (string | fun(): string) executable name/path
+---@field args (string | fun(): string)[] command args
 ---@overload fun(o: self): self
----@field __call? any
----@field __index? any
----@field new? fun(self, o) : self
 ---@field edit? boolean Whether to open the item after creation, default to true
----@field env? table<string, string> environment variables
+---@field env? (table<string, string> | fun(): table<string, string>) environment variables
 ---@overload fun(o: new-item.CmdItem): new-item.CmdItem
 ---@diagnostic disable-next-line: assign-type-mismatch
 local CmdItem = Item:new {
   edit = true,
   __tostring = function(self)
     ---@cast self new-item.CmdItem
-    return vim.inspect(self.cmd)
+    return 'preview not available for new-item.CmdItem'
   end,
 }
 
@@ -32,43 +27,59 @@ function CmdItem:new(o)
   self.__index = self
   local item = setmetatable(o, self)
 
-  if item.cmd == nil or next(item.cmd) == nil then
-    util.warn('cmd is empty for item ' .. item.id)
+  if not item.exe and not item.args then
+    U.warn('item.exe and item.args are nil for item ' .. item.id)
   end
 
   return item
 end
 
+---@internal
 ---@param ctx new-item.ItemCreationContext
-function CmdItem:expand_special_variables(ctx)
-  -- NOTE: %f frontier pattern is supported in luajit
-  local function bounded_variable(name) return '%$' .. name .. '%f[^%w_]' end
+function CmdItem:get_cmd(ctx)
+  ---@param item new-item.CmdItem
+  ---@param cmd string[]
+  ---@param ctx new-item.ItemCreationContext
+  ---@return string[]
+  local function expand_special_variables(item, cmd, ctx)
+    -- NOTE: %f frontier pattern is supported in luajit
+    local function bound_variable(name) return '%$' .. name .. '%f[^%w_]' end
 
-  local cmd = {}
-  for _, seg in ipairs(self.cmd) do
-    seg = seg
-      :gsub(
-        bounded_variable('ITEM_NAME'),
-        ctx.name_input or util.fn_or_val(self.default_name)
-      )
-      :gsub(bounded_variable('ITEM_SUFFIX'), self.suffix or '')
-      :gsub(bounded_variable('ITEM_PREFIX'), self.prefix or '')
-      :gsub(bounded_variable('ITEM_PATH'), ctx.path)
-      :gsub(bounded_variable('ITEM_CWD'), ctx.cwd)
+    local new_cmd = {}
+    for _, seg in ipairs(cmd) do
+      seg = seg
+        :gsub(
+          bound_variable('ITEM_NAME'),
+          ctx.name_input or U.fn_or_val(item.default_name)
+        )
+        :gsub(bound_variable('ITEM_SUFFIX'), item.suffix or '')
+        :gsub(bound_variable('ITEM_PREFIX'), item.prefix or '')
+        :gsub(bound_variable('ITEM_PATH'), ctx.path)
+        :gsub(bound_variable('ITEM_CWD'), ctx.cwd)
 
-    -- expand extra_args
-    for name, arg in pairs(ctx.args or {}) do
-      local variable_name = 'ITEM_' .. name:upper()
-      seg = seg:gsub(bounded_variable(variable_name), arg or '')
+      -- expand extra_args
+      for name, arg in pairs(ctx.args or {}) do
+        local variable_name = 'ITEM_' .. name:upper()
+        seg = seg:gsub(bound_variable(variable_name), arg or '')
+      end
+
+      table.insert(new_cmd, seg)
     end
 
-    table.insert(cmd, seg)
+    return new_cmd
   end
-  return cmd
+
+  local cmd = { U.fn_or_val(self.exe) }
+
+  for _, arg in ipairs(self.args) do
+    table.insert(cmd, U.fn_or_val(arg))
+  end
+
+  return expand_special_variables(self, cmd, ctx)
 end
 
 function CmdItem:_create()
-  (util.item_creator {
+  (U.item_creator {
     path = function(item, ctx)
       ctx.path = item:get_path {
         cwd = ctx.cwd,
@@ -76,24 +87,26 @@ function CmdItem:_create()
       }
     end,
     transform = function(item, ctx)
-      -- expand special variables
-      item.cmd = item:expand_special_variables(ctx)
+      ---@cast item new-item.CmdItem
       _ = item.before_create and item:before_create(ctx)
     end,
     creation = function(item, ctx)
-      if not util.path_exists(ctx.cwd) then vim.fn.mkdir(ctx.cwd, 'p') end
-      util.async_cmd(item.cmd, function(_)
+      if not U.path_exists(ctx.cwd) then vim.fn.mkdir(ctx.cwd, 'p') end
+
+      U.async_cmd(item:get_cmd(ctx), function(_)
         if item.edit then
           vim.schedule(function()
-            ctx.buf = util.edit(ctx.path)
+            ctx.buf = U.edit(ctx.path)
+
             if item.after_create then item:after_create(ctx) end
-            util.warn_if_not_exists(ctx.path)
+
+            U.warn_if_not_exists(ctx.path)
           end)
         else
           item:after_create(ctx)
-          util.warn_if_not_exists(ctx.path)
+          U.warn_if_not_exists(ctx.path)
         end
-      end, { cwd = ctx.cwd, env = item.env or {} })
+      end, { cwd = ctx.cwd, env = U.fn_or_val(item.env) or {} })
     end,
   })(self)
 end

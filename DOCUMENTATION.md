@@ -66,7 +66,7 @@ This plugin was written in a object-oriented style, each type of item was derive
 - `edit`: presume the item created is a file, and open it after creation.
 - `extra_args`: a key-value pair of argument specification, each argument will have an input request during creation.
     - You can access these argument values in `ctx` of each phase
-    - `CmdItem` will generate special variables like `$ITEM_<uppercase_name>` to interpolate in `CmdItem.cmd`
+    - `CmdItem` will generate special variables like `$ITEM_<uppercase_name>` to interpolate in `CmdItem.args`
 - `before_create(item, ctx)`: to perform a transformation before actually creating the item
     - you may transform things like the content or path, even the item template itself(it's an copy of original one)
 - `after_create(item, ctx)`: to perform after creation
@@ -148,15 +148,16 @@ groups.md:append {
 
 ```lua
 ---@class (exact) new-item.CmdItem : new-item.Item
----@field cmd string[]
+---@field exe (string | fun(): string) executable name/path
+---@field args (string | fun(): string)[] command args
 ---@field edit? boolean Whether to open the item after creation, default to true
----@field env? table<string, string> environment variables
+---@field env? (table<string, string> | fun(): table<string, string>) environment variables
 ---@overload fun(o: new-item.CmdItem): new-item.CmdItem
 ```
 
 </details>
 
-`new-item.CmdItem` has special variables available to be expanded in `CmdItem.cmd` field.
+`new-item.CmdItem` has special variables available to be expanded in `CmdItem.args` field.
 - `$ITEM_NAME`: equivalent to `ctx.name_input` or `item.default_name`
 - `$ITEM_CWD`: equivalent to `ctx.cwd`
 - `$ITEM_SUFFIX`: equivalent to `item.suffix`
@@ -172,12 +173,14 @@ groups.dotnet:append {
     label = 'Directory.Build.targets',
     nameable = false,
     default_name = 'Directory.Build.targets',
-    cmd = { 'dotnet', 'new', 'buildtargets' },
+    exe = 'dotnet',
+    args = { 'new', 'buildtargets' },
   },
   cmd {
     id = 'slnx',
     label = 'slnx',
-    cmd = { 'dotnet', 'new', 'sln', '--format', 'slnx', '--name', '$ITEM_NAME' },
+    exe = 'dotnet',
+    args = { 'new', 'sln', '--format', 'slnx', '--name', '$ITEM_NAME' },
     suffix = '.slnx',
     default_name = function() return vim.fs.basename(vim.fn.getcwd()) end, -- use root folder name as default
   }
@@ -250,13 +253,13 @@ You can set a default value and description for the prompt.
 ```
 
 `item.extra_args` is available for all item types, you can access those argument values from `ctx.args` after prompt.
-Each name of the args will generate a corresponding variable `$ITEM_<uppercase_name>` to be expanded in `CmdItem.cmd`.
+Each name of the args will generate a corresponding variable `$ITEM_<uppercase_name>` to be expanded in `CmdItem.args`.
 
 ```lua
 cmd {
   -- ...
-  cmd = {
-    'dotnet',
+  exe = 'dotnet',
+  args = {
     'new',
     'global.json'
     '--sdk-version',

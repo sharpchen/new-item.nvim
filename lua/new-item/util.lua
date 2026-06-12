@@ -98,14 +98,14 @@ function M.dedent(s)
 end
 
 ---@generic T
----@param fov (T | fun(...): T)
----@param ... T? params for function
----@return T
+---@param fov (T | (fun(...): T))?
+---@param ... unknown params for function
+---@return T?
 function M.fn_or_val(fov, ...)
-  if type(fov) == 'function' then
+  if vim.is_callable(fov) then
     return fov(...)
   else
-    return fov
+    return fov -- fov could be nil
   end
 end
 
@@ -299,7 +299,7 @@ function M.parse_items(opts)
 end
 
 ---@param path string
----@return integer buffer number for the opened path
+---@return integer bufnr for the opened path
 function M.edit(path)
   local buf = vim.fn.bufadd(path)
   vim.bo[buf].buflisted = true
