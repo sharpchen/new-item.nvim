@@ -76,10 +76,22 @@ function M.async_cmd(cmd, cb, opts)
 end
 
 ---@param msg string
-function M.warn(msg) vim.notify(msg, vim.log.levels.WARN, { title = ' New-Item' }) end
+function M.warn(msg)
+  vim.notify(
+    string.format('[new-item] %s', msg),
+    vim.log.levels.WARN,
+    { title = ' New-Item' }
+  )
+end
 
 ---@param msg string
-function M.error(msg) vim.notify(msg, vim.log.levels.ERROR, { title = ' New-Item' }) end
+function M.error(msg)
+  vim.notify(
+    string.format('[new-item] %s', msg),
+    vim.log.levels.ERROR,
+    { title = ' New-Item' }
+  )
+end
 
 --- WARN: use vim.text.indent instead
 --- dedent lua raw string
@@ -191,7 +203,7 @@ function M.item_creator(opts)
     opts.transform(item, ctx)
 
     if M.path_exists(ctx.path) then
-      M.error('Item already exists, operation cancelled.')
+      M.error(ctx.path .. ' already exists, operation cancelled.')
       return
     end
 
@@ -327,5 +339,34 @@ M._completions = {}
 ---@param item new-item.AnyItem
 ---@return string
 function M.get_item_uid(item) return '_' .. string.format('%p', item) end
+
+---@param cmd string name of the executable, without extension
+---@return fun(ctx: new-item.ItemCreationContext): string
+function M.exe_from_node_modules(cmd)
+  ---@param ctx new-item.ItemCreationContext
+  return function(ctx)
+    -- find nearest node_modules upward
+    local node_modules = vim.fs.find('node_modules', {
+      type = 'directory',
+      path = ctx.cwd, -- as long as ctx.cwd is absolute path, the search result is absolute as well
+      upward = true,
+      -- `.stop` itself is not searched so it has to be the parent of project root
+      stop = vim.fs.dirname(vim.fn.getcwd()),
+      limit = 1,
+    })[1]
+
+    if not node_modules then return cmd end
+
+    -- NOTE: most shells on Windows(git bash, pwsh, nu etc.) can run .cmd script directly
+    -- NOTE: Windows file system is case-insensitive, so `.cmd` can match '.CMD' as well
+    local exe = vim.fs.find(vim.fn.has('win32') == 1 and cmd .. '.cmd' or cmd, {
+      type = 'file',
+      path = vim.fs.joinpath(node_modules, '.bin'),
+      limit = 1, -- there should be only one matching executable under .bin/
+    })[1]
+
+    return exe or cmd
+  end
+end
 
 return M

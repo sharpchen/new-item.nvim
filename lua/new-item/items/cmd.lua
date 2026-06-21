@@ -2,7 +2,7 @@ local Item = require('new-item.items.item')
 local U = require('new-item.util')
 
 ---@class (exact) new-item.CmdItem : new-item.Item
----@field exe (string | fun(): string) executable name/path
+---@field exe (string | fun(ctx: new-item.ItemCreationContext): string) executable name/path
 ---@field args (string | fun(): string)[] command args
 ---@overload fun(o: self): self
 ---@field edit? boolean Whether to open the item after creation, default to true
@@ -69,7 +69,7 @@ function CmdItem:get_cmd(ctx)
     return new_cmd
   end
 
-  local cmd = { U.fn_or_val(self.exe) }
+  local cmd = { U.fn_or_val(self.exe, ctx) }
 
   for _, arg in ipairs(self.args) do
     table.insert(cmd, U.fn_or_val(arg))
